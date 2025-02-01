@@ -38,6 +38,7 @@ contract NewLaunch {
     event Claimed(address indexed user, uint256 amount);
     event LaunchTriggered(ILaunchFactory.LaunchStatus status, uint256 totalStakedAmount);
 
+    //Todo: check for 0 values
     constructor(
         address _tokenToLaunch,
         uint256 _startTime,
@@ -67,7 +68,6 @@ contract NewLaunch {
         if (factory.launchStatus(address(this)) != ILaunchFactory.LaunchStatus.ACTIVE) {
             revert NewLaunch_Too_Late_To_Stake();
         }
-        if (block.timestamp > endTime) revert NewLaunch_Too_Late_To_Stake();
 
         uint256 _stakedAmount = stakedAmount[msg.sender];
 
