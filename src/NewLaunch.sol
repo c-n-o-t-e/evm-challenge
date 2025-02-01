@@ -78,7 +78,6 @@ contract NewLaunch {
 
         if (_amount == 0) return;
         uint256 _amountAvailableForStaking = tokensAssignedForStaking - totalStaked;
-        if (_amountAvailableForStaking == 0) return;
 
         // ensures that the total staked amount does not exceed the amount of tokens assigned for staking
         if (_amount > _amountAvailableForStaking) {
