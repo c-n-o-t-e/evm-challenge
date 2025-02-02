@@ -33,10 +33,10 @@ contract NewLaunch {
     error NewLaunch_Too_Late_To_Stake();
     error NewLaunch_Too_Early_To_Stake();
     error NewLaunch_Above_MaxPercentage();
-    error NewLaunch_Launch_Not_Successful();
     error NewLaunch_Launch_Already_Triggered();
     error NewLaunch_Liquidity_Not_Added_To_Dex_Yet();
     error NewLaunch_Launch_Was_Successful_Or_Still_Active();
+    error NewLaunch_Launch_Not_Successful_Or_Still_Active();
 
     event Staked(address indexed user, uint256 amount);
     event Unstaked(address indexed user, uint256 amount);
@@ -134,11 +134,12 @@ contract NewLaunch {
     }
 
     function claimLaunchToken() external {
+        triggerLaunchState();
         uint256 _stakedAmount = stakedAmount[msg.sender];
         if (_stakedAmount == 0) revert NewLaunch_Zero_Amount();
 
         if (factory.launchStatus(address(this)) != ILaunchFactory.LaunchStatus.SUCCESSFUL) {
-            revert NewLaunch_Launch_Not_Successful();
+            revert NewLaunch_Launch_Not_Successful_Or_Still_Active();
         }
         if (!liquidityProvided) revert NewLaunch_Liquidity_Not_Added_To_Dex_Yet();
 
@@ -153,7 +154,7 @@ contract NewLaunch {
 
     function addLiquidity() external {
         if (factory.launchStatus(address(this)) != ILaunchFactory.LaunchStatus.SUCCESSFUL) {
-            revert NewLaunch_Launch_Not_Successful();
+            revert NewLaunch_Launch_Not_Successful_Or_Still_Active();
         }
 
         liquidityProvided = true;
