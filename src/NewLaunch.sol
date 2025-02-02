@@ -6,6 +6,7 @@ import {ILaunchFactory} from "./interfaces/ILaunchFactory.sol";
 import {ICurationToken} from "./interfaces/ICurationToken.sol";
 import {SafeERC20} from "oz/contracts/token/ERC20/utils/SafeERC20.sol";
 
+// Todo: add access control
 contract NewLaunch {
     using SafeERC20 for IERC20;
 
@@ -14,6 +15,7 @@ contract NewLaunch {
     uint256 public endTime;
     uint256 public startTime;
     uint256 public totalStaked;
+    uint256 public maxAllowedPerUser;
     uint256 public tokensAssignedForStaking;
 
     bool public liquidityProvided;
@@ -22,12 +24,15 @@ contract NewLaunch {
     address public curationToken;
 
     uint256 constant BIPS_DENOMINATOR = 10_000;
+    uint256 constant MAX_ALLOWED_PER_USER = 500; // 5%
+
     mapping(address => uint256) public stakedAmount;
 
     error NewLaunch_Zero_Amount();
     error NewLaunch_Still_Active();
     error NewLaunch_Too_Late_To_Stake();
     error NewLaunch_Too_Early_To_Stake();
+    error NewLaunch_Above_MaxPercentage();
     error NewLaunch_Launch_Not_Successful();
     error NewLaunch_Launch_Already_Triggered();
     error NewLaunch_Liquidity_Not_Added_To_Dex_Yet();
@@ -54,8 +59,14 @@ contract NewLaunch {
         tokensAssignedForStaking = _tokensAssignedForStaking;
     }
 
+    // add access control only factory can call this function
+    function setMaxAllowedPerUser(uint256 _maxAllowedPerUser) external {
+        if (_maxAllowedPerUser > MAX_ALLOWED_PER_USER) revert NewLaunch_Above_MaxPercentage();
+        maxAllowedPerUser = _maxAllowedPerUser;
+    }
+
     function maxAmountAllowedForOneUser() public view returns (uint256) {
-        return tokensAssignedForStaking * 500 / BIPS_DENOMINATOR;
+        return tokensAssignedForStaking * maxAllowedPerUser / BIPS_DENOMINATOR;
     }
 
     //Todo: consider if there should be a minimum amount to stake
