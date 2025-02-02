@@ -7,7 +7,10 @@ import {CurationToken} from "../src/CurationToken.sol";
 import {LaunchFactory} from "../src/LaunchFactory.sol";
 import {IERC20} from "oz/contracts/token/ERC20/IERC20.sol";
 
-//Todo: ensure only factory can deploy new launch contract
+/*
+    Todo: ensure only factory can deploy new launch contract
+    test for events
+*/
 contract NewLaunchTest is Test {
     NewLaunch newLaunch;
     CurationToken launchToken;
@@ -57,7 +60,7 @@ contract NewLaunchTest is Test {
     }
 
     function test_Should_Let_Users_Stake_Only_Available_Amount_To_Stake() public {
-        _stakeForMultipleUsers(19, "stake");
+        _stake_UnStake_Claim_ForMultipleUsers(19, "stake");
         assertEq(newLaunch.totalStaked(), newLaunch.tokensAssignedForStaking() - 2 ether);
         assertEq(curationToken.balanceOf(address(newLaunch)), newLaunch.tokensAssignedForStaking() - 2 ether);
 
@@ -90,7 +93,7 @@ contract NewLaunchTest is Test {
     }
 
     function test_Users_Should_Not_Stake_Above_Assigned_Amount_For_Staking() public {
-        _stakeForMultipleUsers(20, "stake");
+        _stake_UnStake_Claim_ForMultipleUsers(20, "stake");
 
         assertEq(newLaunch.totalStaked(), newLaunch.tokensAssignedForStaking());
         assertEq(curationToken.balanceOf(address(newLaunch)), newLaunch.tokensAssignedForStaking());
@@ -173,7 +176,7 @@ contract NewLaunchTest is Test {
     }
 
     function test_Should_Let_Users_UnStaking_Their_Staked_Token() public {
-        _stakeForMultipleUsers(19, "stake");
+        _stake_UnStake_Claim_ForMultipleUsers(19, "stake");
         assertEq(newLaunch.totalStaked(), newLaunch.tokensAssignedForStaking() - 2 ether);
         assertEq(curationToken.balanceOf(address(newLaunch)), newLaunch.tokensAssignedForStaking() - 2 ether);
 
@@ -188,7 +191,7 @@ contract NewLaunchTest is Test {
         );
 
         // Allows Users Unstaking their staked token.
-        _stakeForMultipleUsers(19, "unstake");
+        _stake_UnStake_Claim_ForMultipleUsers(19, "unstake");
         assertEq(newLaunch.totalStaked(), 0);
         assertEq(curationToken.balanceOf(address(newLaunch)), 0);
     }
@@ -211,8 +214,57 @@ contract NewLaunchTest is Test {
         vm.stopPrank();
     }
 
-    function _stakeForMultipleUsers(uint256 _count, bytes32 _direction) internal {
+    /////////////////// CLAIMING TESTS ///////////////////
+
+    function test_Claim() public {
+        _stake_UnStake_Claim_ForMultipleUsers(20, "stake");
+        assertEq(newLaunch.totalStaked(), newLaunch.tokensAssignedForStaking());
+
+        newLaunch.triggerLaunchState();
+        assertEq(newLaunch.totalStaked(), 0); // Once triggerLaunchState is called total stake is set to 0
+
+        assertEq(curationToken.balanceOf(address(newLaunch)), newLaunch.tokensAssignedForStaking());
+        assertEq(
+            uint256(launchFactory.launchStatus(address(newLaunch))), uint256(LaunchFactory.LaunchStatus.SUCCESSFUL)
+        );
+
+        newLaunch.addLiquidity();
+        assertEq(launchToken.balanceOf(address(newLaunch)), 100 ether);
+
+        _stake_UnStake_Claim_ForMultipleUsers(20, "claim");
+        assertEq(curationToken.balanceOf(address(newLaunch)), 0);
+        assertEq(launchToken.balanceOf(address(newLaunch)), 100 ether - newLaunch.tokensAssignedForStaking());
+    }
+
+    function test_Claim_Should_Fail() public {
         uint256 amount = 2 ether;
+        curationToken.mint(bob, amount);
+
+        // Should revert if user doesn't have any staked amount to unstake
+        vm.expectRevert(abi.encodeWithSelector(NewLaunch.NewLaunch_Zero_Amount.selector));
+        newLaunch.claimLaunchToken();
+
+        vm.startPrank(bob);
+        IERC20(curationToken).approve(address(newLaunch), amount);
+        newLaunch.stakeCurationToken(amount);
+        assertEq(newLaunch.totalStaked(), amount);
+
+        vm.expectRevert(abi.encodeWithSelector(NewLaunch.NewLaunch_Launch_Not_Successful_Or_Still_Active.selector));
+        newLaunch.claimLaunchToken();
+        vm.stopPrank();
+
+        _stake_UnStake_Claim_ForMultipleUsers(19, "stake");
+
+        // After successful curation should fail to let users claim tokens if liquidity hasn't been added to Dex.
+        vm.startPrank(bob);
+        vm.expectRevert(abi.encodeWithSelector(NewLaunch.NewLaunch_Liquidity_Not_Added_To_Dex_Yet.selector));
+        newLaunch.claimLaunchToken();
+        vm.stopPrank();
+    }
+
+    function _stake_UnStake_Claim_ForMultipleUsers(uint256 _count, bytes32 _direction) internal {
+        uint256 amount = 2 ether;
+
         if (_direction == "stake") {
             for (uint256 i = 0; i < _count; i++) {
                 address newAddress = vm.addr(i + 1);
@@ -227,7 +279,7 @@ contract NewLaunchTest is Test {
                 assertEq(newLaunch.stakedAmount(newAddress), amount);
                 vm.stopPrank();
             }
-        } else {
+        } else if (_direction == "unstake") {
             for (uint256 i = 0; i < _count; i++) {
                 address newAddress = vm.addr(i + 1);
 
@@ -235,6 +287,16 @@ contract NewLaunchTest is Test {
                 newLaunch.unstakeCurationToken();
                 assertEq(newLaunch.stakedAmount(newAddress), 0);
                 assertEq(curationToken.balanceOf(newAddress), amount);
+                vm.stopPrank();
+            }
+        } else if (_direction == "claim") {
+            for (uint256 i = 0; i < _count; i++) {
+                address newAddress = vm.addr(i + 1);
+
+                vm.startPrank(newAddress);
+                newLaunch.claimLaunchToken();
+                assertEq(newLaunch.stakedAmount(newAddress), 0);
+                assertEq(launchToken.balanceOf(newAddress), amount);
                 vm.stopPrank();
             }
         }
