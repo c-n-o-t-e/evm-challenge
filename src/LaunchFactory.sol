@@ -122,6 +122,11 @@ contract LaunchFactory {
         // emit LaunchToken(_tokenToLaunch, newLaunch);
     }
 
+    // add access control only owner can call this function
+    function setMaxAllowedPerUserForNewLaunch(address _launch, uint256 _maxAllowedPerUser) external {
+        NewLaunch(_launch).setMaxAllowedPerUser(_maxAllowedPerUser);
+    }
+
     function updateLaunchStatus(address _launch, LaunchStatus _status) external {
         submissions[_launch].status = _status;
     }
