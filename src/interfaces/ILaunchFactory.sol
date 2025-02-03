@@ -18,15 +18,17 @@ interface ILaunchFactory {
 
     function updateLaunchStatus(address, LaunchStatus) external;
 
-    function launchToken(address _launchAddress) external view returns (address);
+    function getLaunchToken(address _launchAddress) external view returns (address);
 
-    function launchStatus(address _launchAddress) external view returns (LaunchStatus);
+    function getLaunchStatus(address _launchAddress) external view returns (LaunchStatus);
 
-    function launchAmountToDistribute(address _launchAddress) external view returns (uint256);
+    function getLaunchAmountForLiquidity(address _launch) external view returns (uint256);
 
-    function launchTargetCurationAmount(address _launchAddress) external view returns (uint256);
+    function getLaunchAmountToDistribute(address _launchAddress) external view returns (uint256);
+
+    function getLaunchTargetCurationAmount(address _launchAddress) external view returns (uint256);
 
     function updateLaunchStakedAmountAfterCurationPeriod(address _launch, uint256 _amount) external;
 
-    function launchStakedAmountAfterCurationPeriod(address _launchAddress) external view returns (uint256);
+    function getLaunchStakedAmountAfterCurationPeriod(address _launchAddress) external view returns (uint256);
 }
