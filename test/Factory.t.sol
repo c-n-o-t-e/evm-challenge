@@ -16,11 +16,13 @@ contract CounterTest is Test {
     LaunchFactory launchFactoryProxy;
 
     function setUp() public {
+        newLaunch = new NewLaunch();
         launchToken = new CurationToken();
         curationToken = new CurationToken();
         launchFactory = new LaunchFactory();
 
-        bytes memory init = abi.encodeCall(launchFactory.initialize, (address(this), address(curationToken)));
+        bytes memory init =
+            abi.encodeCall(launchFactory.initialize, (address(this), address(curationToken), address(newLaunch)));
         launchFactoryProxy = LaunchFactory(address(new ERC1967Proxy(address(launchFactory), init)));
 
         launchFactoryProxy.setMinimumLaunchAmount(5 ether);
@@ -40,7 +42,7 @@ contract CounterTest is Test {
 
         newLaunch = NewLaunch(
             launchFactoryProxy.launchTokenForCuration(
-                address(launchToken), block.timestamp, block.timestamp + 72 hours, 4_000, address(1)
+                address(launchToken), block.timestamp, block.timestamp + 72 hours, 4_000
             )
         );
 
@@ -48,7 +50,7 @@ contract CounterTest is Test {
         assertEq(address(newLaunch), newLaunchAddress);
 
         assertEq(launchToken.balanceOf(address(newLaunch)), 10 ether);
-        assertEq(launchFactoryProxy.getLaunchToken(address(newLaunch)), address(launchToken));
+        assertEq(launchFactoryProxy.getLaunchAddress(address(launchToken)), address(newLaunch));
         assertEq(launchFactoryProxy.getLaunchAmountForStaking(address(newLaunch)), newLaunch.tokensAssignedForStaking());
 
         assertEq(launchFactoryProxy.getLaunchStakedAmountAfterCurationPeriod(address(newLaunch)), 0);
@@ -62,13 +64,11 @@ contract CounterTest is Test {
         vm.warp(1 hours);
 
         vm.expectRevert(abi.encodeWithSelector(LaunchFactory.LaunchFactory_Start_Time_In_The_Past.selector));
-        launchFactoryProxy.launchTokenForCuration(
-            address(launchToken), 0, block.timestamp + 72 hours, 4_000, address(1)
-        );
+        launchFactoryProxy.launchTokenForCuration(address(launchToken), 0, block.timestamp + 72 hours, 4_000);
 
         vm.expectRevert(abi.encodeWithSelector(LaunchFactory.LaunchFactory_Curation_Below_Minimum_Duration.selector));
         launchFactoryProxy.launchTokenForCuration(
-            address(launchToken), block.timestamp, block.timestamp + 12 hours, 4_000, address(1)
+            address(launchToken), block.timestamp, block.timestamp + 12 hours, 4_000
         );
 
         vm.expectRevert(
@@ -76,7 +76,7 @@ contract CounterTest is Test {
         );
 
         launchFactoryProxy.launchTokenForCuration(
-            address(launchToken), block.timestamp, block.timestamp + 72 hours, 4_000, address(1)
+            address(launchToken), block.timestamp, block.timestamp + 72 hours, 4_000
         );
 
         launchToken.mint(address(launchFactoryProxy), 10 ether);
@@ -88,7 +88,7 @@ contract CounterTest is Test {
         );
 
         launchFactoryProxy.launchTokenForCuration(
-            address(launchToken), block.timestamp, block.timestamp + 72 hours, 6_000, address(1)
+            address(launchToken), block.timestamp, block.timestamp + 72 hours, 6_000
         );
 
         vm.expectRevert(
@@ -98,7 +98,7 @@ contract CounterTest is Test {
         );
 
         launchFactoryProxy.launchTokenForCuration(
-            address(launchToken), block.timestamp, block.timestamp + 72 hours, 2_000, address(1)
+            address(launchToken), block.timestamp, block.timestamp + 72 hours, 2_000
         );
     }
 }
