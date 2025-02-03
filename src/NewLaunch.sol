@@ -53,7 +53,6 @@ contract NewLaunch is Initializable {
         _disableInitializers();
     }
 
-    //Todo: check for 0 values
     function initialize(
         address _tokenToLaunch,
         uint256 _startTime,
@@ -138,12 +137,12 @@ contract NewLaunch is Initializable {
 
         if (totalStaked == tokensAssignedForStaking) {
             totalStaked = 0;
-            factory.updateLaunchStatus(address(this), ILaunchFactory.LaunchStatus.SUCCESSFUL);
-            factory.updateLaunchStakedAmountAfterCurationPeriod(address(this), tokensAssignedForStaking);
+            factory.updateLaunchStatus(address(this), launchToken, ILaunchFactory.LaunchStatus.SUCCESSFUL);
+            factory.updateLaunchStakedAmountAfterCurationPeriod(address(this), launchToken, tokensAssignedForStaking);
         } else if (block.timestamp > endTime) {
             totalStaked = 0;
-            factory.updateLaunchStakedAmountAfterCurationPeriod(address(this), totalStaked);
-            factory.updateLaunchStatus(address(this), ILaunchFactory.LaunchStatus.NOT_SUCCESSFUL);
+            factory.updateLaunchStakedAmountAfterCurationPeriod(address(this), launchToken, totalStaked);
+            factory.updateLaunchStatus(address(this), launchToken, ILaunchFactory.LaunchStatus.NOT_SUCCESSFUL);
 
             // If curation isn't successful send back new tokens to launch back to the factory
             IERC20(launchToken).safeTransfer(address(factory), IERC20(launchToken).balanceOf(address(this)));
