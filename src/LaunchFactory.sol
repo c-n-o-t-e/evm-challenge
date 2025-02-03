@@ -6,9 +6,11 @@ import {IERC20} from "oz/contracts/token/ERC20/IERC20.sol";
 import {IUniswapV3Factory} from "./interfaces/IUniswapV3Factory.sol";
 import {INonfungiblePositionManager} from "./interfaces/INonfungiblePositionManager.sol";
 
-// import {Initializable} from "ozUpgradeable/contracts/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "ozUpgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "ozUpgradeable/contracts/access/OwnableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "ozUpgradeable/contracts/utils/ReentrancyGuardUpgradeable.sol";
 
-contract LaunchFactory {
+contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUpgradeable {
     enum LaunchStatus {
         NOT_ACTIVE,
         ACTIVE,
@@ -31,26 +33,22 @@ contract LaunchFactory {
         address recipient;
     }
 
-    address curationToken;
-
-    uint256 public minimumCurationPeriod;
-    uint256 public minimumAmountToLaunch;
-    uint256 public maximumStakingAmountPercentage;
-    uint256 public minimumStakingAmountPercentage;
-
     uint256 constant MAX_PERCENTAGE = 5_000;
     uint256 constant BIPS_DENOMINATOR = 10_000;
     uint256 constant MINIMUM_PERCENTAGE = 2_000;
     uint256 constant MINIMUM_CURATION_PERIOD = 24 hours;
 
-    mapping(address => TokenSubmission) public submissions;
-
-    struct TokenSubmission {
-        LaunchStatus status;
-        address tokenAddress;
-        uint256 amountForStaking;
-        uint256 amountForLiquidity;
-        uint256 stakedAmountAfterCurationPeriod;
+    struct LaunchFactoryStorage {
+        address curationToken;
+        uint256 minimumCurationPeriod;
+        uint256 minimumAmountToLaunch;
+        uint256 maximumStakingAmountPercentage;
+        uint256 minimumStakingAmountPercentage;
+        mapping(address => LaunchStatus) status;
+        mapping(address => address) tokenAddress;
+        mapping(address => uint256) amountForStaking;
+        mapping(address => uint256) amountForLiquidity;
+        mapping(address => uint256) stakedAmountAfterCurationPeriod;
     }
 
     error LaunchFactory_Above_MaxPercentage();
@@ -62,49 +60,85 @@ contract LaunchFactory {
     error LaunchFactory_Balance_Below_Minimum_Launch_Amount();
     error LaunchFactory_Balance_Below_Or_Above_Minimum_Staking_Percentage();
 
+    // keccak256(abi.encode(uint256(keccak256("bio.storage.LaunchFactory")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant LaunchFactoryStorageLocation =
+        0x40f6a347e5b73cd2e1f4103810af363b4099ae3a1e65d0bfb823ba7ce33e9900;
+
+    function _getLaunchFactoryStorage() private pure returns (LaunchFactoryStorage storage $) {
+        // slither-disable-next-line assembly
+        assembly {
+            $.slot := LaunchFactoryStorageLocation
+        }
+    }
+
     // /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address _curationToken) {
-        curationToken = _curationToken;
-        // _disableInitializers();
+    constructor() {
+        _disableInitializers();
     }
 
-    function setMinimumLaunchAmount(uint256 _minimumAmountToLaunch) external {
-        minimumAmountToLaunch = _minimumAmountToLaunch;
+    function initialize(address _owner, address _curationToken) external initializer {
+        __Ownable_init(_owner);
+        __ReentrancyGuard_init();
+        __UUPSUpgradeable_init();
+        LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
+        $.curationToken = _curationToken;
     }
 
-    function setMinimumCurationPeriod(uint256 _minimumCurationPeriod) external {
+    /**
+     * @notice Authorizes an upgrade to a new contract implementation.
+     * @dev Internal function to authorize upgrading the contract to a new implementation.
+     *      Overrides the UUPSUpgradeable `_authorizeUpgrade` function.
+     *      Restricted to the contract owner.
+     * @param newImplementation The address of the new contract implementation.
+     */
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    function setMinimumLaunchAmount(uint256 _minimumAmountToLaunch) external onlyOwner {
+        // emit
+        LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
+        $.minimumAmountToLaunch = _minimumAmountToLaunch;
+    }
+
+    function setMinimumCurationPeriod(uint256 _minimumCurationPeriod) external onlyOwner {
         if (_minimumCurationPeriod < MINIMUM_CURATION_PERIOD) revert LaunchFactory_Below_Minimun_Duration();
-        minimumCurationPeriod = _minimumCurationPeriod;
+        // emit
+        LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
+        $.minimumCurationPeriod = _minimumCurationPeriod;
     }
 
-    function setMaximumStakingAmountPercentage(uint256 _maximumStakingAmountPercentage) external {
+    function setMaximumStakingAmountPercentage(uint256 _maximumStakingAmountPercentage) external onlyOwner {
         if (_maximumStakingAmountPercentage > MAX_PERCENTAGE) revert LaunchFactory_Above_MaxPercentage();
-        maximumStakingAmountPercentage = _maximumStakingAmountPercentage;
+        // emit
+        LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
+        $.maximumStakingAmountPercentage = _maximumStakingAmountPercentage;
     }
 
-    function setMinimumStakingAmountPercentage(uint256 _minimumStakingAmountPercentage) external {
+    function setMinimumStakingAmountPercentage(uint256 _minimumStakingAmountPercentage) external onlyOwner {
         if (_minimumStakingAmountPercentage < MINIMUM_PERCENTAGE) revert LaunchFactory_Below_MinimumPercentage();
-        minimumStakingAmountPercentage = _minimumStakingAmountPercentage;
+        // emit
+        LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
+        $.minimumStakingAmountPercentage = _minimumStakingAmountPercentage;
     }
 
-    function launchStatus(address _launch) public view returns (LaunchStatus) {
-        return submissions[_launch].status;
+    // should all start with get
+    function getLaunchStatus(address _launch) public view returns (LaunchStatus) {
+        return _getLaunchFactoryStorage().status[_launch];
     }
 
-    function launchToken(address _launch) public view returns (address) {
-        return submissions[_launch].tokenAddress;
+    function getLaunchToken(address _launch) public view returns (address) {
+        return _getLaunchFactoryStorage().tokenAddress[_launch];
     }
 
-    function launchAmountForStaking(address _launch) external view returns (uint256) {
-        return submissions[_launch].amountForStaking;
+    function getLaunchAmountForStaking(address _launch) external view returns (uint256) {
+        return _getLaunchFactoryStorage().amountForStaking[_launch];
     }
 
-    function launchAmountForLiquidity(address _launch) external view returns (uint256) {
-        return submissions[_launch].amountForLiquidity;
+    function getLaunchAmountForLiquidity(address _launch) external view returns (uint256) {
+        return _getLaunchFactoryStorage().amountForLiquidity[_launch];
     }
 
-    function launchStakedAmountAfterCurationPeriod(address _launch) external view returns (uint256) {
-        return submissions[_launch].stakedAmountAfterCurationPeriod;
+    function getLaunchStakedAmountAfterCurationPeriod(address _launch) external view returns (uint256) {
+        return _getLaunchFactoryStorage().stakedAmountAfterCurationPeriod[_launch];
     }
 
     function launchTokenForCuration(
@@ -113,18 +147,22 @@ contract LaunchFactory {
         uint256 _endTime,
         uint256 _stakingPercentage,
         address _nonfungiblePositionManager
-    ) external returns (address newLaunch) {
+    ) external onlyOwner returns (address newLaunch) {
+        LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
+
         if (_startTime < block.timestamp) revert LaunchFactory_Start_Time_In_The_Past();
-        if (_endTime < _startTime + minimumCurationPeriod) revert LaunchFactory_Curation_Below_Minimum_Duration();
+        if (_endTime < _startTime + $.minimumCurationPeriod) revert LaunchFactory_Curation_Below_Minimum_Duration();
 
         uint256 contractLaunchTokenBalance = IERC20(_tokenToLaunch).balanceOf(address(this));
 
-        if (contractLaunchTokenBalance < minimumAmountToLaunch) {
+        if (contractLaunchTokenBalance < $.minimumAmountToLaunch) {
             revert LaunchFactory_Balance_Below_Minimum_Launch_Amount();
         }
 
-        if (_stakingPercentage > maximumStakingAmountPercentage || _stakingPercentage < minimumStakingAmountPercentage)
-        {
+        if (
+            _stakingPercentage > $.maximumStakingAmountPercentage
+                || _stakingPercentage < $.minimumStakingAmountPercentage
+        ) {
             revert LaunchFactory_Balance_Below_Or_Above_Minimum_Staking_Percentage();
         }
 
@@ -135,35 +173,37 @@ contract LaunchFactory {
                 _startTime,
                 _endTime,
                 tokenAvailableForStaking,
-                curationToken,
+                $.curationToken,
                 _nonfungiblePositionManager
             )
         );
 
-        TokenSubmission storage submission = submissions[newLaunch];
-        submission.status = LaunchStatus.ACTIVE;
-        submission.tokenAddress = _tokenToLaunch;
-        submission.amountForStaking = tokenAvailableForStaking;
-        submission.amountForLiquidity = contractLaunchTokenBalance - tokenAvailableForStaking;
+        $.status[address(newLaunch)] = LaunchStatus.ACTIVE;
+        $.tokenAddress[address(newLaunch)] = _tokenToLaunch;
+        $.amountForStaking[address(newLaunch)] = tokenAvailableForStaking;
+        $.amountForLiquidity[address(newLaunch)] = contractLaunchTokenBalance - tokenAvailableForStaking;
 
         IERC20(_tokenToLaunch).transfer(newLaunch, contractLaunchTokenBalance);
         // emit LaunchToken(_tokenToLaunch, newLaunch);
     }
 
     // add access control only owner can call this function
-    function setMaxAllowedPerUserForNewLaunch(address _launch, uint256 _maxAllowedPerUser) external {
+    function setMaxAllowedPerUserForNewLaunch(address _launch, uint256 _maxAllowedPerUser) external onlyOwner {
         NewLaunch(_launch).setMaxAllowedPerUser(_maxAllowedPerUser);
     }
 
     function addLiquidity(AddLiquidity memory _p)
         external
+        onlyOwner
         returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)
     {
-        if (launchStatus(address(this)) != LaunchStatus.SUCCESSFUL) {
+        if (getLaunchStatus(_p.curationContract) != LaunchStatus.SUCCESSFUL) {
             revert NewLaunch_Launch_Not_Successful_Or_Still_Active();
         }
 
-        address pool = IUniswapV3Factory(_p.factory).createPool(curationToken, launchToken(_p.curationContract), _p.fee);
+        address pool = IUniswapV3Factory(_p.factory).createPool(
+            _getLaunchFactoryStorage().curationToken, getLaunchToken(_p.curationContract), _p.fee
+        );
         IUniswapV3Factory(pool).initialize(_p.sqrtPriceX96);
 
         address token0 = INonfungiblePositionManager(pool).token0();
@@ -186,17 +226,19 @@ contract LaunchFactory {
     }
 
     function updateLaunchStatus(address _launch, LaunchStatus _status) external {
-        submissions[_launch].status = _status;
+        LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
+        $.status[_launch] = _status;
     }
 
     function updateLaunchStakedAmountAfterCurationPeriod(address _launch, uint256 _amount) external {
-        submissions[_launch].stakedAmountAfterCurationPeriod = _amount;
+        LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
+        $.stakedAmountAfterCurationPeriod[_launch] = _amount;
     }
 
-    function withdrawToken(address _token, uint256 _amount) external {
-        // <--- Check
-        if (submissions[_token].status != LaunchStatus.ACTIVE) {
-            IERC20(_token).transfer(msg.sender, _amount);
-        }
-    }
+    // function withdrawToken(address _token, uint256 _amount) external {
+    //     // <--- Check
+    //     if (submissions[_token].status != LaunchStatus.ACTIVE) {
+    //         IERC20(_token).transfer(msg.sender, _amount);
+    //     }
+    // }
 }
