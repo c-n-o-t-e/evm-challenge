@@ -6,6 +6,8 @@ import {Test, console} from "forge-std/Test.sol";
 import {CurationToken} from "../src/CurationToken.sol";
 import {LaunchFactory} from "../src/LaunchFactory.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {MockLaunchFactory} from "./mocks/MockLaunchFactory.sol";
+import {UUPSUpgradeable} from "ozUpgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
 //Todo: ensure only factory can deploy new launch contract
 contract CounterTest is Test {
@@ -14,6 +16,7 @@ contract CounterTest is Test {
     CurationToken curationToken;
     LaunchFactory launchFactory;
     LaunchFactory launchFactoryProxy;
+    MockLaunchFactory mockLaunchFactory;
 
     function setUp() public {
         newLaunch = new NewLaunch();
@@ -29,6 +32,31 @@ contract CounterTest is Test {
         launchFactoryProxy.setMinimumCurationPeriod(48 hours);
         launchFactoryProxy.setMaximumStakingAmountPercentage(5_000);
         launchFactoryProxy.setMinimumStakingAmountPercentage(3_000);
+    }
+
+    function test_upgradeFactory() public {
+        mockLaunchFactory = new MockLaunchFactory();
+
+        // Will fail as newFunction() isn't part of current implementation version
+        vm.expectRevert();
+        MockLaunchFactory(address(launchFactoryProxy)).newFunction();
+
+        // Upgrade to MockLaunchFactory
+        UUPSUpgradeable(address(launchFactoryProxy)).upgradeToAndCall(address(mockLaunchFactory), "");
+
+        // Passes as newFunction() is part of current implementation version
+        string memory message = MockLaunchFactory(address(launchFactoryProxy)).newFunction();
+        assertEq(message, "I am new Implementation");
+    }
+
+    error OwnableUnauthorizedAccount(address account);
+
+    function test_upgradeFactory_Should_Fail() public {
+        mockLaunchFactory = new MockLaunchFactory();
+        vm.startPrank(address(1));
+        vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, (address(1))));
+        UUPSUpgradeable(address(launchFactoryProxy)).upgradeToAndCall(address(mockLaunchFactory), "");
+        vm.stopPrank();
     }
 
     function test_LaunchCuration() public {

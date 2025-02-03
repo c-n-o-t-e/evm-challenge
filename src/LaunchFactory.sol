@@ -59,6 +59,7 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
     error LaunchFactory_Start_Time_In_The_Past();
     error LaunchFactory_Below_Minimun_Duration();
     error LaunchFactory_Below_MinimumPercentage();
+    error LaunchFactory_Curation_Already_Launched();
     error LaunchFactory_Caller_Not_CurationContract();
     error LaunchFactory_Amount_Above_Contract_Balance();
     error LaunchFactory_Curation_Below_Minimum_Duration();
@@ -137,26 +138,6 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
         $.minimumStakingAmountPercentage = _minimumStakingAmountPercentage;
     }
 
-    function getLaunchStatus(address _launch) public view returns (LaunchStatus) {
-        return _getLaunchFactoryStorage().status[_launch];
-    }
-
-    function getLaunchAddress(address _token) public view returns (address) {
-        return _getLaunchFactoryStorage().curationAddress[_token];
-    }
-
-    function getLaunchAmountForStaking(address _launch) external view returns (uint256) {
-        return _getLaunchFactoryStorage().amountForStaking[_launch];
-    }
-
-    function getLaunchAmountForLiquidity(address _launch) external view returns (uint256) {
-        return _getLaunchFactoryStorage().amountForLiquidity[_launch];
-    }
-
-    function getLaunchStakedAmountAfterCurationPeriod(address _launch) external view returns (uint256) {
-        return _getLaunchFactoryStorage().stakedAmountAfterCurationPeriod[_launch];
-    }
-
     function launchTokenForCuration(
         address _tokenToLaunch,
         uint256 _startTime,
@@ -166,6 +147,7 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
         LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
 
         if (_tokenToLaunch == address(0)) revert LaunchFactory_Zero_Address();
+        if (getLaunchAddress(_tokenToLaunch) != address(0)) revert LaunchFactory_Curation_Already_Launched();
         if (_startTime < block.timestamp) revert LaunchFactory_Start_Time_In_The_Past();
         if (_endTime < _startTime + $.minimumCurationPeriod) revert LaunchFactory_Curation_Below_Minimum_Duration();
 
@@ -275,4 +257,46 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
     //         IERC20(_token).transfer(msg.sender, _amount);
     //     }
     // }
+
+    /////////////////// VIEW FUNCTION ///////////////////
+
+    function getMinimumStakingAmountPercentage() external view returns (uint256) {
+        return _getLaunchFactoryStorage().minimumStakingAmountPercentage;
+    }
+
+    function getMaximumStakingAmountPercentage() external view returns (uint256) {
+        return _getLaunchFactoryStorage().maximumStakingAmountPercentage;
+    }
+
+    function getMinimumCurationPeriod() external view returns (uint256) {
+        return _getLaunchFactoryStorage().minimumCurationPeriod;
+    }
+
+    function getMinimumLaunchAmount() external view returns (uint256) {
+        return _getLaunchFactoryStorage().minimumAmountToLaunch;
+    }
+
+    function getBeaconImplementation() external view returns (UpgradeableBeacon) {
+        return _getLaunchFactoryStorage().newLaunchBeacon;
+    }
+
+    function getLaunchStatus(address _launch) public view returns (LaunchStatus) {
+        return _getLaunchFactoryStorage().status[_launch];
+    }
+
+    function getLaunchAddress(address _token) public view returns (address) {
+        return _getLaunchFactoryStorage().curationAddress[_token];
+    }
+
+    function getLaunchAmountForStaking(address _launch) external view returns (uint256) {
+        return _getLaunchFactoryStorage().amountForStaking[_launch];
+    }
+
+    function getLaunchAmountForLiquidity(address _launch) external view returns (uint256) {
+        return _getLaunchFactoryStorage().amountForLiquidity[_launch];
+    }
+
+    function getLaunchStakedAmountAfterCurationPeriod(address _launch) external view returns (uint256) {
+        return _getLaunchFactoryStorage().stakedAmountAfterCurationPeriod[_launch];
+    }
 }
