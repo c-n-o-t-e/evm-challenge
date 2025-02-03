@@ -48,16 +48,18 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
         uint256 minimumStakingAmountPercentage;
         UpgradeableBeacon newLaunchBeacon;
         mapping(address => LaunchStatus) status;
-        mapping(address => address) tokenAddress;
+        mapping(address => address) curationAddress;
         mapping(address => uint256) amountForStaking;
         mapping(address => uint256) amountForLiquidity;
         mapping(address => uint256) stakedAmountAfterCurationPeriod;
     }
 
+    error LaunchFactory_Zero_Address();
     error LaunchFactory_Above_MaxPercentage();
     error LaunchFactory_Start_Time_In_The_Past();
     error LaunchFactory_Below_Minimun_Duration();
     error LaunchFactory_Below_MinimumPercentage();
+    error LaunchFactory_Caller_Not_CurationContract();
     error LaunchFactory_Amount_Above_Contract_Balance();
     error LaunchFactory_Curation_Below_Minimum_Duration();
     error LaunchFactory_Balance_Below_Minimum_Launch_Amount();
@@ -80,10 +82,19 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
         _disableInitializers();
     }
 
+    modifier onlyCurationContract(address _launch, address _token) {
+        if (getLaunchAddress(_token) != _launch) revert LaunchFactory_Caller_Not_CurationContract();
+        _;
+    }
+
     function initialize(address _owner, address _curationToken, address _implementation) external initializer {
         __Ownable_init(_owner);
         __ReentrancyGuard_init();
         __UUPSUpgradeable_init();
+
+        if (_curationToken == address(0)) revert LaunchFactory_Zero_Address();
+        if (_implementation == address(0)) revert LaunchFactory_Zero_Address();
+
         LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
         $.curationToken = _curationToken;
         $.newLaunchImplementation = _implementation;
@@ -130,8 +141,8 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
         return _getLaunchFactoryStorage().status[_launch];
     }
 
-    function getLaunchAddress(address _launch) public view returns (address) {
-        return _getLaunchFactoryStorage().tokenAddress[_launch];
+    function getLaunchAddress(address _token) public view returns (address) {
+        return _getLaunchFactoryStorage().curationAddress[_token];
     }
 
     function getLaunchAmountForStaking(address _launch) external view returns (uint256) {
@@ -154,6 +165,7 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
     ) external onlyOwner returns (address newLaunch) {
         LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
 
+        if (_tokenToLaunch == address(0)) revert LaunchFactory_Zero_Address();
         if (_startTime < block.timestamp) revert LaunchFactory_Start_Time_In_The_Past();
         if (_endTime < _startTime + $.minimumCurationPeriod) revert LaunchFactory_Curation_Below_Minimum_Duration();
 
@@ -170,7 +182,7 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
             revert LaunchFactory_Balance_Below_Or_Above_Minimum_Staking_Percentage();
         }
 
-        uint256 tokenAvailableForStaking = contractLaunchTokenBalance * _stakingPercentage / BIPS_DENOMINATOR;
+        uint256 tokenAssignedForStaking = contractLaunchTokenBalance * _stakingPercentage / BIPS_DENOMINATOR;
 
         BeaconProxy beaconProxy = new BeaconProxy(
             address($.newLaunchBeacon),
@@ -179,22 +191,21 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
                 _tokenToLaunch,
                 _startTime,
                 _endTime,
-                tokenAvailableForStaking,
+                tokenAssignedForStaking,
                 $.curationToken
             )
         );
 
         newLaunch = address(beaconProxy);
         $.status[address(newLaunch)] = LaunchStatus.ACTIVE;
-        $.tokenAddress[_tokenToLaunch] = address(newLaunch);
-        $.amountForStaking[address(newLaunch)] = tokenAvailableForStaking;
-        $.amountForLiquidity[address(newLaunch)] = contractLaunchTokenBalance - tokenAvailableForStaking;
+        $.curationAddress[_tokenToLaunch] = address(newLaunch);
+        $.amountForStaking[address(newLaunch)] = tokenAssignedForStaking;
+        $.amountForLiquidity[address(newLaunch)] = contractLaunchTokenBalance - tokenAssignedForStaking;
 
         IERC20(_tokenToLaunch).transfer(newLaunch, contractLaunchTokenBalance);
         // emit LaunchToken(_tokenToLaunch, newLaunch);
     }
 
-    // add access control only owner can call this function
     function setMaxAllowedPerUserForNewLaunch(address _launch, uint256 _maxAllowedPerUser) external onlyOwner {
         NewLaunch(_launch).setMaxAllowedPerUser(_maxAllowedPerUser);
     }
@@ -241,12 +252,18 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
         (tokenId, liquidity, amount0, amount1) = NewLaunch(curationContract).addLiquidity(params, _p.nftPositionManager);
     }
 
-    function updateLaunchStatus(address _launch, LaunchStatus _status) external {
+    function updateLaunchStatus(address _launch, address _token, LaunchStatus _status)
+        external
+        onlyCurationContract(_launch, _token)
+    {
         LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
         $.status[_launch] = _status;
     }
 
-    function updateLaunchStakedAmountAfterCurationPeriod(address _launch, uint256 _amount) external {
+    function updateLaunchStakedAmountAfterCurationPeriod(address _launch, address _token, uint256 _amount)
+        external
+        onlyCurationContract(_launch, _token)
+    {
         LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
         $.stakedAmountAfterCurationPeriod[_launch] = _amount;
     }
