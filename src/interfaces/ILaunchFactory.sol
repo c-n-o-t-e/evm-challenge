@@ -16,7 +16,7 @@ interface ILaunchFactory {
         uint256 _tokenForStakingPercentage
     ) external returns (address newLaunch);
 
-    function updateLaunchStatus(address, LaunchStatus) external;
+    function updateLaunchStatus(address, address, LaunchStatus) external;
 
     function getLaunchToken(address _launchAddress) external view returns (address);
 
@@ -28,7 +28,7 @@ interface ILaunchFactory {
 
     function getLaunchTargetCurationAmount(address _launchAddress) external view returns (uint256);
 
-    function updateLaunchStakedAmountAfterCurationPeriod(address _launch, uint256 _amount) external;
+    function updateLaunchStakedAmountAfterCurationPeriod(address _launch, address, uint256 _amount) external;
 
     function getLaunchStakedAmountAfterCurationPeriod(address _launchAddress) external view returns (uint256);
 }
