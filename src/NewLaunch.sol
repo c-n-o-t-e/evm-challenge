@@ -5,12 +5,14 @@ import {IERC20} from "oz/contracts/token/ERC20/IERC20.sol";
 import {ILaunchFactory} from "./interfaces/ILaunchFactory.sol";
 import {ICurationToken} from "./interfaces/ICurationToken.sol";
 import {SafeERC20} from "oz/contracts/token/ERC20/utils/SafeERC20.sol";
+import {INonfungiblePositionManager} from "./interfaces/INonfungiblePositionManager.sol";
 
 // Todo: add access control
 contract NewLaunch {
     using SafeERC20 for IERC20;
 
     ILaunchFactory public factory;
+    INonfungiblePositionManager public nonfungiblePositionManager;
 
     uint256 public endTime;
     uint256 public startTime;
@@ -30,13 +32,16 @@ contract NewLaunch {
 
     error NewLaunch_Zero_Amount();
     error NewLaunch_Still_Active();
+    error NewLaunch_Invalid_Token();
     error NewLaunch_Too_Late_To_Stake();
     error NewLaunch_Too_Early_To_Stake();
+    error NewLaunch_Caller_Not_Factory();
     error NewLaunch_Above_MaxPercentage();
     error NewLaunch_Launch_Already_Triggered();
     error NewLaunch_Liquidity_Not_Added_To_Dex_Yet();
     error NewLaunch_Launch_Was_Successful_Or_Still_Active();
     error NewLaunch_Launch_Not_Successful_Or_Still_Active();
+    error NewLaunch_Launch_Token_Does_Not_Match_Contract_Balance();
 
     event Staked(address indexed user, uint256 amount);
     event Unstaked(address indexed user, uint256 amount);
@@ -49,7 +54,8 @@ contract NewLaunch {
         uint256 _startTime,
         uint256 _endTime,
         uint256 _tokensAssignedForStaking,
-        address _curationToken
+        address _curationToken,
+        address _nonfungiblePositionManager
     ) {
         endTime = _endTime;
         startTime = _startTime;
@@ -57,10 +63,16 @@ contract NewLaunch {
         curationToken = _curationToken;
         factory = ILaunchFactory(msg.sender);
         tokensAssignedForStaking = _tokensAssignedForStaking;
+        nonfungiblePositionManager = INonfungiblePositionManager(_nonfungiblePositionManager);
+    }
+
+    modifier onlyFactory() {
+        if (msg.sender != address(factory)) revert NewLaunch_Caller_Not_Factory();
+        _;
     }
 
     // add access control only factory can call this function
-    function setMaxAllowedPerUser(uint256 _maxAllowedPerUser) external {
+    function setMaxAllowedPerUser(uint256 _maxAllowedPerUser) external onlyFactory {
         if (_maxAllowedPerUser > MAX_ALLOWED_PER_USER) revert NewLaunch_Above_MaxPercentage();
         maxAllowedPerUser = _maxAllowedPerUser;
     }
@@ -128,6 +140,9 @@ contract NewLaunch {
             totalStaked = 0;
             factory.updateLaunchStakedAmountAfterCurationPeriod(address(this), totalStaked);
             factory.updateLaunchStatus(address(this), ILaunchFactory.LaunchStatus.NOT_SUCCESSFUL);
+
+            // If curation isn't successful send back new tokens to launch back to the factory
+            IERC20(launchToken).safeTransfer(address(factory), IERC20(launchToken).balanceOf(address(this)));
         }
 
         emit LaunchTriggered(factory.launchStatus(address(this)), totalStaked);
@@ -152,9 +167,35 @@ contract NewLaunch {
         emit Claimed(msg.sender, _stakedAmount);
     }
 
-    function addLiquidity() external {
-        if (factory.launchStatus(address(this)) != ILaunchFactory.LaunchStatus.SUCCESSFUL) {
-            revert NewLaunch_Launch_Not_Successful_Or_Still_Active();
+    function addLiquidity(INonfungiblePositionManager.MintParams memory params)
+        external
+        payable
+        onlyFactory
+        returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)
+    {
+        if (params.token0 != launchToken && params.token0 != curationToken) revert NewLaunch_Invalid_Token();
+        if (params.token1 != launchToken && params.token1 != curationToken) revert NewLaunch_Invalid_Token();
+
+        uint256 lunchTokenAmount = params.token0 == launchToken ? params.amount0Desired : params.amount1Desired;
+
+        if (lunchTokenAmount != IERC20(launchToken).balanceOf(address(this))) {
+            revert NewLaunch_Launch_Token_Does_Not_Match_Contract_Balance();
+        }
+
+        IERC20(params.token0).approve(address(nonfungiblePositionManager), params.amount0Desired);
+        IERC20(params.token1).approve(address(nonfungiblePositionManager), params.amount1Desired);
+
+        (tokenId, liquidity, amount0, amount1) = nonfungiblePositionManager.mint(params);
+
+        if (amount0 < params.amount0Desired) {
+            IERC20(params.token0).forceApprove(address(nonfungiblePositionManager), 0);
+            uint256 refund0 = params.amount0Desired - amount0;
+            IERC20(params.token0).transfer(msg.sender, refund0);
+        }
+        if (amount1 < params.amount1Desired) {
+            IERC20(params.token1).forceApprove(address(nonfungiblePositionManager), 0);
+            uint256 refund1 = params.amount1Desired - amount1;
+            IERC20(params.token1).safeTransfer(msg.sender, refund1);
         }
 
         liquidityProvided = true;
