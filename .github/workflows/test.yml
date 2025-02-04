@@ -22,8 +22,8 @@ jobs:
           
       - name: Use Secret ENV Variable
         env:
-          SECRET_KEY: ${{ secrets.ETHEREUM_RPC_URL }}
-        run: echo "The secret is $SECRET_KEY"
+          ETHEREUM_RPC_URL: ${{ secrets.ETHEREUM_RPC_URL }}
+        run: echo "The secret is $ETHEREUM_RPC_URL"
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
