@@ -15,14 +15,14 @@ jobs:
 
     name: Foundry project
     runs-on: ubuntu-latest
+    env:
+      ETHEREUM_RPC_URL: ${{ secrets.ETHEREUM_RPC_URL }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
           
       - name: Use Secret ENV Variable
-        env:
-          ETHEREUM_RPC_URL: ${{ secrets.ETHEREUM_RPC_URL }}
         run: echo "The secret is $ETHEREUM_RPC_URL"
 
       - name: Install Foundry
