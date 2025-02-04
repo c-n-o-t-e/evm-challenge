@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13; // update version
+pragma solidity =0.8.25;
 
 import {IERC20} from "oz/contracts/token/ERC20/IERC20.sol";
 import {ILaunchFactory} from "./interfaces/ILaunchFactory.sol";

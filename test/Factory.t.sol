@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity =0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {CurationToken} from "../src/CurationToken.sol";
@@ -9,8 +9,19 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {MockLaunchFactory} from "./mocks/MockLaunchFactory.sol";
 import {UUPSUpgradeable} from "ozUpgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
-//Todo: ensure only factory can deploy new launch contract
-contract CounterTest is Test {
+/**
+ * @title Uint Test For LaunchFactory
+ * @author c-n-o-t-e
+ * @dev Contract is used to test out LaunchFactory in stateless way
+ *
+ * Functionalities Tested:
+ * - Staking
+ * - UnStaking
+ * - Claiming
+ * - Adding Liquidity
+ * - Failed Scenairos
+ */
+contract LaunchFactoryTest is Test {
     CurationLaunch newLaunch;
     CurationToken launchToken;
     CurationToken curationToken;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+pragma solidity =0.8.25;
 
 import {CommonBase} from "forge-std/Base.sol";
 import {StdUtils} from "forge-std/StdUtils.sol";
@@ -10,6 +10,17 @@ import {CurationLaunchTestMock} from "../mocks/CurationLaunchTestMock.sol";
 
 import "../CurationLaunch.t.sol";
 
+/**
+ * @title Invariant Test For CurationLaunch
+ * @author c-n-o-t-e
+ * @dev Contract is used to test out CurationLaunch-
+ *      via mock contracts in a stateful way
+ *
+ * Functionalities Tested:
+ * - Staking
+ * - UnStaking
+ * - Claiming
+ */
 contract CurationLaunchHandler is CommonBase, StdCheats, StdUtils {
     using LibAddressSet for AddressSet;
 

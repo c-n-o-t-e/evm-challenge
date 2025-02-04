@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity =0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {CurationToken} from "../src/CurationToken.sol";
@@ -14,17 +14,18 @@ import {UpgradeableBeacon} from "oz/contracts/proxy/beacon/UpgradeableBeacon.sol
 import {INonfungiblePositionManager} from "../src/interfaces/INonfungiblePositionManager.sol";
 
 /**
- * @title Uint Test For .......
+ * @title Uint Test For CurationLaunch
  * @author c-n-o-t-e
- * @dev Contract is used to test out .......-
- *      by forking the Ethereum Mainnet chain to interact with....
+ * @dev Contract is used to test out CurationLaunch-
+ *      by forking the Ethereum Mainnet chain to interact with UniSwap V3 in stateless way
  *
  * Functionalities Tested:
+ * - Staking
+ * - UnStaking
+ * - Claiming
+ * - Adding Liquidity
+ * - Failed Scenairos
  */
-/*
-    Todo: ensure only factory can deploy new launch contract
-    test for events
-*/
 contract CurationLaunchTest is Test {
     CurationToken launchToken;
     CurationToken curationToken;

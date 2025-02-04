@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity =0.8.25;
 
 import {CurationLaunch} from "./CurationLaunch.sol";
 import {IERC20} from "oz/contracts/token/ERC20/IERC20.sol";
@@ -11,6 +11,15 @@ import {OwnableUpgradeable} from "ozUpgradeable/contracts/access/OwnableUpgradea
 import {INonfungiblePositionManager} from "./interfaces/INonfungiblePositionManager.sol";
 import {ReentrancyGuardUpgradeable} from "ozUpgradeable/contracts/utils/ReentrancyGuardUpgradeable.sol";
 
+/**
+ * @title LaunchFactory
+ * @author c-n-o-t-e
+ * @dev Contract allows protocol owners to onboard new projects by-
+ *      providing a platform for their users to vote via staking protocols token-
+ *      to determine if projects should go live.
+ *
+ *       Contract adopts UUPS and Beacon patterns to upgrade Factory and CurationLaunch contracts respectively.
+ */
 contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUpgradeable {
     enum LaunchStatus {
         NOT_ACTIVE,
