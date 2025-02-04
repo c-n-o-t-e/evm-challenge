@@ -78,7 +78,7 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
         }
     }
 
-    // /// @custom:oz-upgrades-unsafe-allow constructor
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
@@ -147,8 +147,8 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
         LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
 
         if (_tokenToLaunch == address(0)) revert LaunchFactory_Zero_Address();
-        if (getLaunchAddress(_tokenToLaunch) != address(0)) revert LaunchFactory_Curation_Already_Launched();
         if (_startTime < block.timestamp) revert LaunchFactory_Start_Time_In_The_Past();
+        if (getLaunchAddress(_tokenToLaunch) != address(0)) revert LaunchFactory_Curation_Already_Launched();
         if (_endTime < _startTime + $.minimumCurationPeriod) revert LaunchFactory_Curation_Below_Minimum_Duration();
 
         uint256 contractLaunchTokenBalance = IERC20(_tokenToLaunch).balanceOf(address(this));
