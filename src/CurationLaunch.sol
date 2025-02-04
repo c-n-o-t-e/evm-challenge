@@ -52,7 +52,6 @@ contract CurationLaunch is Initializable, ReentrancyGuardUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
-        __ReentrancyGuard_init();
     }
 
     function initialize(
@@ -62,6 +61,7 @@ contract CurationLaunch is Initializable, ReentrancyGuardUpgradeable {
         uint256 _tokensAssignedForStaking,
         address _curationToken
     ) public initializer {
+        __ReentrancyGuard_init();
         endTime = _endTime;
         startTime = _startTime;
         launchToken = _tokenToLaunch;
