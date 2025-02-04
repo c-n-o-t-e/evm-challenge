@@ -134,21 +134,25 @@ contract CurationLaunch is Initializable {
 
     function triggerLaunchState() public {
         if (factory.getLaunchStatus(address(this)) != ILaunchFactory.LaunchStatus.ACTIVE) return;
+        uint256 _totalStaked = tokensAssignedForStaking;
 
-        if (totalStaked == tokensAssignedForStaking) {
+        if (totalStaked == _totalStaked) {
             totalStaked = 0;
             factory.updateLaunchStatus(address(this), launchToken, ILaunchFactory.LaunchStatus.SUCCESSFUL);
-            factory.updateLaunchStakedAmountAfterCurationPeriod(address(this), launchToken, tokensAssignedForStaking);
+            factory.updateLaunchStakedAmountAfterCurationPeriod(address(this), launchToken, _totalStaked);
+
+            emit LaunchTriggered(factory.getLaunchStatus(address(this)), _totalStaked);
         } else if (block.timestamp > endTime) {
+            _totalStaked = totalStaked;
             totalStaked = 0;
-            factory.updateLaunchStakedAmountAfterCurationPeriod(address(this), launchToken, totalStaked);
+            factory.updateLaunchStakedAmountAfterCurationPeriod(address(this), launchToken, _totalStaked);
             factory.updateLaunchStatus(address(this), launchToken, ILaunchFactory.LaunchStatus.NOT_SUCCESSFUL);
 
             // If curation isn't successful send back new tokens to launch back to the factory
             IERC20(launchToken).safeTransfer(address(factory), IERC20(launchToken).balanceOf(address(this)));
-        }
 
-        emit LaunchTriggered(factory.getLaunchStatus(address(this)), totalStaked);
+            emit LaunchTriggered(factory.getLaunchStatus(address(this)), _totalStaked);
+        }
     }
 
     function claimLaunchToken() external {
