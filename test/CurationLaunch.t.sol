@@ -27,7 +27,7 @@ import {INonfungiblePositionManager} from "../src/interfaces/INonfungiblePositio
     Todo: ensure only factory can deploy new launch contract
     test for events
 */
-contract NewLaunchTest is Test {
+contract CurationLaunchTest is Test {
     NewLaunch newLaunch;
     CurationToken launchToken;
     CurationToken curationToken;
@@ -70,7 +70,7 @@ contract NewLaunchTest is Test {
         //label
     }
 
-    /////////////////// UPGRADE TESTS ///////////////////
+    /////////////////// BEACON UPGRADE TESTS ///////////////////
 
     function test_upgradeNewLaunch() public {
         CurationToken launchToken1 = new CurationToken();
@@ -118,9 +118,11 @@ contract NewLaunchTest is Test {
 
     function test_upgradeNewLaunchShouldFail() public {
         MockNewLaunch mockNewLaunch = new MockNewLaunch();
-        vm.startPrank(address(7));
-        vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, (address(7))));
-        launchFactoryProxy.getBeaconImplementation().upgradeTo(address(mockNewLaunch));
+        UpgradeableBeacon beacon = launchFactoryProxy.getBeaconImplementation();
+
+        vm.startPrank(address(1));
+        vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, (address(1))));
+        beacon.upgradeTo(address(mockNewLaunch));
         vm.stopPrank();
     }
 
