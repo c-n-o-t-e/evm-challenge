@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {NewLaunch} from "../src/NewLaunch.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {TickMath} from "../src/library/TickMath.sol";
 import {CurationToken} from "../src/CurationToken.sol";
 import {LaunchFactory} from "../src/LaunchFactory.sol";
-import {MockNewLaunch} from "./mocks/MockNewLaunch.sol";
+import {CurationLaunch} from "../src/CurationLaunch.sol";
 import {IERC20} from "oz/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "oz/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {MockCurationLaunch} from "./mocks/MockCurationLaunch.sol";
 import {LiquidityAmounts} from "../src/library/LiquidityAmounts.sol";
 import {IERC721Receiver} from "../src/Interfaces/IERC721Receiver.sol";
 import {UpgradeableBeacon} from "oz/contracts/proxy/beacon/UpgradeableBeacon.sol";
@@ -28,10 +28,10 @@ import {INonfungiblePositionManager} from "../src/interfaces/INonfungiblePositio
     test for events
 */
 contract CurationLaunchTest is Test {
-    NewLaunch newLaunch;
     CurationToken launchToken;
     CurationToken curationToken;
     LaunchFactory launchFactory;
+    CurationLaunch curationLaunch;
     LaunchFactory launchFactoryProxy;
 
     address bob = makeAddr("bob");
@@ -41,13 +41,13 @@ contract CurationLaunchTest is Test {
     function setUp() public {
         vm.createSelectFork(ETHEREUM_RPC_URL);
 
-        newLaunch = new NewLaunch();
         launchToken = new CurationToken();
         curationToken = new CurationToken();
         launchFactory = new LaunchFactory();
+        curationLaunch = new CurationLaunch();
 
         bytes memory init =
-            abi.encodeCall(launchFactory.initialize, (address(this), address(curationToken), address(newLaunch)));
+            abi.encodeCall(launchFactory.initialize, (address(this), address(curationToken), address(curationLaunch)));
         launchFactoryProxy = LaunchFactory(address(new ERC1967Proxy(address(launchFactory), init)));
 
         launchFactoryProxy.setMinimumLaunchAmount(5 ether);
@@ -59,35 +59,35 @@ contract CurationLaunchTest is Test {
 
         vm.warp(1 days);
 
-        newLaunch = NewLaunch(
+        curationLaunch = CurationLaunch(
             launchFactoryProxy.launchTokenForCuration(
                 address(launchToken), block.timestamp, block.timestamp + 72 hours, 4_000
             )
         );
 
-        launchFactoryProxy.setMaxAllowedPerUserForNewLaunch(address(newLaunch), 500);
+        launchFactoryProxy.setMaxAllowedPerUserForNewLaunch(address(curationLaunch), 500);
 
         //label
     }
 
     /////////////////// BEACON UPGRADE TESTS ///////////////////
 
-    function test_upgradeNewLaunch() public {
+    function test_upgradeCurationLaunch() public {
         CurationToken launchToken1 = new CurationToken();
         CurationToken launchToken2 = new CurationToken();
-        MockNewLaunch mockNewLaunch = new MockNewLaunch();
+        MockCurationLaunch mockCurationLaunch = new MockCurationLaunch();
 
         launchToken1.mint(address(launchFactoryProxy), 100 ether);
         launchToken2.mint(address(launchFactoryProxy), 100 ether);
 
         // Deploy 2 more New Launch Contracts
-        NewLaunch newLaunch1 = NewLaunch(
+        CurationLaunch curationLaunch1 = CurationLaunch(
             launchFactoryProxy.launchTokenForCuration(
                 address(launchToken1), block.timestamp, block.timestamp + 72 hours, 4_000
             )
         );
 
-        NewLaunch newLaunch2 = NewLaunch(
+        CurationLaunch curationLaunch2 = CurationLaunch(
             launchFactoryProxy.launchTokenForCuration(
                 address(launchToken2), block.timestamp, block.timestamp + 72 hours, 4_000
             )
@@ -95,34 +95,34 @@ contract CurationLaunchTest is Test {
 
         // All calls from Cpntracts will fail as newFunction() isn't part of their current implementation version.
         vm.expectRevert();
-        MockNewLaunch(address(newLaunch)).newFunction();
+        MockCurationLaunch(address(curationLaunch)).newFunction();
 
         vm.expectRevert();
-        MockNewLaunch(address(newLaunch1)).newFunction();
+        MockCurationLaunch(address(curationLaunch1)).newFunction();
 
         vm.expectRevert();
-        MockNewLaunch(address(newLaunch2)).newFunction();
+        MockCurationLaunch(address(curationLaunch2)).newFunction();
 
-        // Upgrade to MockNewLaunch Implementation
-        launchFactoryProxy.getBeaconImplementation().upgradeTo(address(mockNewLaunch));
+        // Upgrade to MockCurationLaunch Implementation
+        launchFactoryProxy.getBeaconImplementation().upgradeTo(address(mockCurationLaunch));
 
         // All calls pass as newFunction() is part of the current implementation version hence all contracts get updated saving gas.
-        assertEq(MockNewLaunch(address(newLaunch)).newFunction(), "I am new Implementation");
+        assertEq(MockCurationLaunch(address(curationLaunch)).newFunction(), "I am new Implementation");
 
-        assertEq(MockNewLaunch(address(newLaunch1)).newFunction(), "I am new Implementation");
+        assertEq(MockCurationLaunch(address(curationLaunch1)).newFunction(), "I am new Implementation");
 
-        assertEq(MockNewLaunch(address(newLaunch2)).newFunction(), "I am new Implementation");
+        assertEq(MockCurationLaunch(address(curationLaunch2)).newFunction(), "I am new Implementation");
     }
 
     error OwnableUnauthorizedAccount(address account);
 
-    function test_upgradeNewLaunchShouldFail() public {
-        MockNewLaunch mockNewLaunch = new MockNewLaunch();
+    function test_upgradeCurationLaunchShouldFail() public {
+        MockCurationLaunch mockCurationLaunch = new MockCurationLaunch();
         UpgradeableBeacon beacon = launchFactoryProxy.getBeaconImplementation();
 
         vm.startPrank(address(1));
         vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, (address(1))));
-        beacon.upgradeTo(address(mockNewLaunch));
+        beacon.upgradeTo(address(mockCurationLaunch));
         vm.stopPrank();
     }
 
@@ -132,18 +132,18 @@ contract CurationLaunchTest is Test {
         curationToken.mint(bob, amount);
 
         vm.startPrank(bob);
-        IERC20(curationToken).approve(address(newLaunch), amount);
-        newLaunch.stakeCurationToken(amount);
+        IERC20(curationToken).approve(address(curationLaunch), amount);
+        curationLaunch.stakeCurationToken(amount);
 
-        assertEq(newLaunch.totalStaked(), amount);
-        assertEq(curationToken.balanceOf(address(newLaunch)), amount);
+        assertEq(curationLaunch.totalStaked(), amount);
+        assertEq(curationToken.balanceOf(address(curationLaunch)), amount);
         vm.stopPrank();
     }
 
     function test_Should_Let_Users_Stake_Only_Available_Amount_To_Stake() public {
         _stakeUnStakeClaimForMultipleUsers(19, "stake");
-        assertEq(newLaunch.totalStaked(), newLaunch.tokensAssignedForStaking() - 2 ether);
-        assertEq(curationToken.balanceOf(address(newLaunch)), newLaunch.tokensAssignedForStaking() - 2 ether);
+        assertEq(curationLaunch.totalStaked(), curationLaunch.tokensAssignedForStaking() - 2 ether);
+        assertEq(curationToken.balanceOf(address(curationLaunch)), curationLaunch.tokensAssignedForStaking() - 2 ether);
 
         // At this stage, only 2 ether is available for staking
 
@@ -152,32 +152,32 @@ contract CurationLaunchTest is Test {
 
         // Bob stakes 1 ether leaving 1 ether available for staking
         vm.startPrank(bob);
-        IERC20(curationToken).approve(address(newLaunch), 1 ether);
-        newLaunch.stakeCurationToken(1 ether);
+        IERC20(curationToken).approve(address(curationLaunch), 1 ether);
+        curationLaunch.stakeCurationToken(1 ether);
         vm.stopPrank();
 
-        assertEq(newLaunch.totalStaked(), newLaunch.tokensAssignedForStaking() - 1 ether);
-        assertEq(curationToken.balanceOf(address(newLaunch)), newLaunch.tokensAssignedForStaking() - 1 ether);
+        assertEq(curationLaunch.totalStaked(), curationLaunch.tokensAssignedForStaking() - 1 ether);
+        assertEq(curationToken.balanceOf(address(curationLaunch)), curationLaunch.tokensAssignedForStaking() - 1 ether);
 
         // Alice tries to stake 2 ether but only 1 ether is available so the contract lets her stake only 1 ether
         assertEq(curationToken.balanceOf(alice), 2 ether);
         vm.startPrank(alice);
-        IERC20(curationToken).approve(address(newLaunch), 2 ether);
-        newLaunch.stakeCurationToken(2 ether);
+        IERC20(curationToken).approve(address(curationLaunch), 2 ether);
+        curationLaunch.stakeCurationToken(2 ether);
         vm.stopPrank();
 
         // Alice should have 1 ether left
         assertEq(curationToken.balanceOf(alice), 1 ether);
         // Total staked amount should be equal to the assigned amount for staking
-        assertEq(newLaunch.totalStaked(), newLaunch.tokensAssignedForStaking());
-        assertEq(curationToken.balanceOf(address(newLaunch)), newLaunch.tokensAssignedForStaking());
+        assertEq(curationLaunch.totalStaked(), curationLaunch.tokensAssignedForStaking());
+        assertEq(curationToken.balanceOf(address(curationLaunch)), curationLaunch.tokensAssignedForStaking());
     }
 
     function test_Users_Should_Not_Stake_Above_Assigned_Amount_For_Staking() public {
         _stakeUnStakeClaimForMultipleUsers(20, "stake");
 
-        assertEq(newLaunch.totalStaked(), newLaunch.tokensAssignedForStaking());
-        assertEq(curationToken.balanceOf(address(newLaunch)), newLaunch.tokensAssignedForStaking());
+        assertEq(curationLaunch.totalStaked(), curationLaunch.tokensAssignedForStaking());
+        assertEq(curationToken.balanceOf(address(curationLaunch)), curationLaunch.tokensAssignedForStaking());
 
         // Bob tries to stake after assigned staking amount is reached
 
@@ -187,8 +187,8 @@ contract CurationLaunchTest is Test {
 
         // Should revert because the total staked amount has reached the assigned amount and Launch status is not ACTIVE anymore.
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(NewLaunch.NewLaunch_Too_Late_To_Stake.selector));
-        newLaunch.stakeCurationToken(amt);
+        vm.expectRevert(abi.encodeWithSelector(CurationLaunch.CurationLaunch_Too_Late_To_Stake.selector));
+        curationLaunch.stakeCurationToken(amt);
         vm.stopPrank();
     }
 
@@ -197,34 +197,34 @@ contract CurationLaunchTest is Test {
         curationToken.mint(address(this), amount);
         assertEq(curationToken.balanceOf(address(this)), amount);
 
-        IERC20(curationToken).approve(address(newLaunch), amount);
-        newLaunch.stakeCurationToken(amount);
-        uint256 maxAllowed = newLaunch.maxAmountAllowedForOneUser();
+        IERC20(curationToken).approve(address(curationLaunch), amount);
+        curationLaunch.stakeCurationToken(amount);
+        uint256 maxAllowed = curationLaunch.maxAmountAllowedForOneUser();
 
-        assertEq(newLaunch.stakedAmount(address(this)), maxAllowed);
-        assertEq(newLaunch.totalStaked(), maxAllowed);
+        assertEq(curationLaunch.stakedAmount(address(this)), maxAllowed);
+        assertEq(curationLaunch.totalStaked(), maxAllowed);
 
-        assertEq(curationToken.balanceOf(address(newLaunch)), maxAllowed);
+        assertEq(curationToken.balanceOf(address(curationLaunch)), maxAllowed);
         assertEq(curationToken.balanceOf(address(this)), amount - maxAllowed);
 
         // tries staking more than allowed
-        newLaunch.stakeCurationToken(amount);
+        curationLaunch.stakeCurationToken(amount);
 
         // asserted values should remain the same
-        assertEq(newLaunch.totalStaked(), maxAllowed);
-        assertEq(newLaunch.stakedAmount(address(this)), maxAllowed);
+        assertEq(curationLaunch.totalStaked(), maxAllowed);
+        assertEq(curationLaunch.stakedAmount(address(this)), maxAllowed);
 
-        assertEq(curationToken.balanceOf(address(newLaunch)), maxAllowed);
+        assertEq(curationToken.balanceOf(address(curationLaunch)), maxAllowed);
         assertEq(curationToken.balanceOf(address(this)), amount - maxAllowed);
     }
 
     function test_Stake_Should_Fail() public {
-        vm.expectRevert(abi.encodeWithSelector(NewLaunch.NewLaunch_Zero_Amount.selector));
-        newLaunch.stakeCurationToken(0);
+        vm.expectRevert(abi.encodeWithSelector(CurationLaunch.CurationLaunch_Zero_Amount.selector));
+        curationLaunch.stakeCurationToken(0);
 
         vm.warp(60 seconds);
-        vm.expectRevert(abi.encodeWithSelector(NewLaunch.NewLaunch_Too_Early_To_Stake.selector));
-        newLaunch.stakeCurationToken(1 ether);
+        vm.expectRevert(abi.encodeWithSelector(CurationLaunch.CurationLaunch_Too_Early_To_Stake.selector));
+        curationLaunch.stakeCurationToken(1 ether);
     }
 
     /////////////////// UNSTAKING TESTS ///////////////////
@@ -236,48 +236,49 @@ contract CurationLaunchTest is Test {
         assertEq(curationToken.balanceOf(bob), amount);
 
         vm.startPrank(bob);
-        IERC20(curationToken).approve(address(newLaunch), amount);
+        IERC20(curationToken).approve(address(curationLaunch), amount);
 
-        newLaunch.stakeCurationToken(amount);
-        assertEq(newLaunch.totalStaked(), amount);
+        curationLaunch.stakeCurationToken(amount);
+        assertEq(curationLaunch.totalStaked(), amount);
 
         assertEq(curationToken.balanceOf(bob), 0);
-        assertEq(curationToken.balanceOf(address(newLaunch)), amount);
+        assertEq(curationToken.balanceOf(address(curationLaunch)), amount);
 
         vm.warp(block.timestamp + 4 days); // increase time to 4 days after end time.
 
-        newLaunch.unstakeCurationToken();
-        assertEq(newLaunch.totalStaked(), 0);
+        curationLaunch.unstakeCurationToken();
+        assertEq(curationLaunch.totalStaked(), 0);
 
-        assertEq(newLaunch.stakedAmount(bob), 0);
+        assertEq(curationLaunch.stakedAmount(bob), 0);
         assertEq(curationToken.balanceOf(bob), amount);
 
-        assertEq(curationToken.balanceOf(address(newLaunch)), 0);
+        assertEq(curationToken.balanceOf(address(curationLaunch)), 0);
         vm.stopPrank();
     }
 
     function test_Should_Let_Users_UnStaking_Their_Staked_Token() public {
         _stakeUnStakeClaimForMultipleUsers(19, "stake");
-        assertEq(newLaunch.totalStaked(), newLaunch.tokensAssignedForStaking() - 2 ether);
-        assertEq(curationToken.balanceOf(address(newLaunch)), newLaunch.tokensAssignedForStaking() - 2 ether);
+        assertEq(curationLaunch.totalStaked(), curationLaunch.tokensAssignedForStaking() - 2 ether);
+        assertEq(curationToken.balanceOf(address(curationLaunch)), curationLaunch.tokensAssignedForStaking() - 2 ether);
 
         // Staking is still active here given assigned amount for a successful launch is 2 ether short
         assertEq(
-            uint256(launchFactoryProxy.getLaunchStatus(address(newLaunch))), uint256(LaunchFactory.LaunchStatus.ACTIVE)
+            uint256(launchFactoryProxy.getLaunchStatus(address(curationLaunch))),
+            uint256(LaunchFactory.LaunchStatus.ACTIVE)
         );
 
         vm.warp(block.timestamp + 4 days); // increase time to 4 days after end time to end curating period.
-        newLaunch.triggerLaunchState(); // This should set the launch status to NOT_SUCCESSFUL given the total staked amount is less than the assigned amount for a successful launch
+        curationLaunch.triggerLaunchState(); // This should set the launch status to NOT_SUCCESSFUL given the total staked amount is less than the assigned amount for a successful launch
 
         assertEq(
-            uint256(launchFactoryProxy.getLaunchStatus(address(newLaunch))),
+            uint256(launchFactoryProxy.getLaunchStatus(address(curationLaunch))),
             uint256(LaunchFactory.LaunchStatus.NOT_SUCCESSFUL)
         );
 
         // Allows Users Unstaking their staked token.
         _stakeUnStakeClaimForMultipleUsers(19, "unstake");
-        assertEq(newLaunch.totalStaked(), 0);
-        assertEq(curationToken.balanceOf(address(newLaunch)), 0);
+        assertEq(curationLaunch.totalStaked(), 0);
+        assertEq(curationToken.balanceOf(address(curationLaunch)), 0);
     }
 
     function test_Unstake_Should_Fail() public {
@@ -285,16 +286,18 @@ contract CurationLaunchTest is Test {
         curationToken.mint(bob, amount);
 
         // Should revert if user doesn't have any staked amount to unstake
-        vm.expectRevert(abi.encodeWithSelector(NewLaunch.NewLaunch_Zero_Amount.selector));
-        newLaunch.unstakeCurationToken();
+        vm.expectRevert(abi.encodeWithSelector(CurationLaunch.CurationLaunch_Zero_Amount.selector));
+        curationLaunch.unstakeCurationToken();
 
         vm.startPrank(bob);
-        IERC20(curationToken).approve(address(newLaunch), amount);
-        newLaunch.stakeCurationToken(amount);
-        assertEq(newLaunch.totalStaked(), amount);
+        IERC20(curationToken).approve(address(curationLaunch), amount);
+        curationLaunch.stakeCurationToken(amount);
+        assertEq(curationLaunch.totalStaked(), amount);
 
-        vm.expectRevert(abi.encodeWithSelector(NewLaunch.NewLaunch_Launch_Was_Successful_Or_Still_Active.selector));
-        newLaunch.unstakeCurationToken();
+        vm.expectRevert(
+            abi.encodeWithSelector(CurationLaunch.CurationLaunch_Launch_Was_Successful_Or_Still_Active.selector)
+        );
+        curationLaunch.unstakeCurationToken();
         vm.stopPrank();
     }
 
@@ -302,14 +305,14 @@ contract CurationLaunchTest is Test {
 
     function test_addLiquidity() public {
         _stakeUnStakeClaimForMultipleUsers(20, "stake");
-        assertEq(newLaunch.totalStaked(), newLaunch.tokensAssignedForStaking());
+        assertEq(curationLaunch.totalStaked(), curationLaunch.tokensAssignedForStaking());
 
-        newLaunch.triggerLaunchState();
-        assertEq(newLaunch.totalStaked(), 0); // Once triggerLaunchState is called total stake is set to 0
+        curationLaunch.triggerLaunchState();
+        assertEq(curationLaunch.totalStaked(), 0); // Once triggerLaunchState is called total stake is set to 0
 
-        assertEq(curationToken.balanceOf(address(newLaunch)), newLaunch.tokensAssignedForStaking());
+        assertEq(curationToken.balanceOf(address(curationLaunch)), curationLaunch.tokensAssignedForStaking());
         assertEq(
-            uint256(launchFactoryProxy.getLaunchStatus(address(newLaunch))),
+            uint256(launchFactoryProxy.getLaunchStatus(address(curationLaunch))),
             uint256(LaunchFactory.LaunchStatus.SUCCESSFUL)
         );
 
@@ -371,14 +374,14 @@ contract CurationLaunchTest is Test {
 
     function test_Claim() public {
         _stakeUnStakeClaimForMultipleUsers(20, "stake");
-        assertEq(newLaunch.totalStaked(), newLaunch.tokensAssignedForStaking());
+        assertEq(curationLaunch.totalStaked(), curationLaunch.tokensAssignedForStaking());
 
-        newLaunch.triggerLaunchState();
-        assertEq(newLaunch.totalStaked(), 0); // Once triggerLaunchState is called total stake is set to 0
+        curationLaunch.triggerLaunchState();
+        assertEq(curationLaunch.totalStaked(), 0); // Once triggerLaunchState is called total stake is set to 0
 
-        assertEq(curationToken.balanceOf(address(newLaunch)), newLaunch.tokensAssignedForStaking());
+        assertEq(curationToken.balanceOf(address(curationLaunch)), curationLaunch.tokensAssignedForStaking());
         assertEq(
-            uint256(launchFactoryProxy.getLaunchStatus(address(newLaunch))),
+            uint256(launchFactoryProxy.getLaunchStatus(address(curationLaunch))),
             uint256(LaunchFactory.LaunchStatus.SUCCESSFUL)
         );
 
@@ -399,11 +402,11 @@ contract CurationLaunchTest is Test {
         });
 
         launchFactoryProxy.addLiquidity(params);
-        assertEq(launchToken.balanceOf(address(newLaunch)), newLaunch.tokensAssignedForStaking());
+        assertEq(launchToken.balanceOf(address(curationLaunch)), curationLaunch.tokensAssignedForStaking());
 
         _stakeUnStakeClaimForMultipleUsers(20, "claim");
-        assertEq(curationToken.balanceOf(address(newLaunch)), 0);
-        assertEq(launchToken.balanceOf(address(newLaunch)), 0);
+        assertEq(curationToken.balanceOf(address(curationLaunch)), 0);
+        assertEq(launchToken.balanceOf(address(curationLaunch)), 0);
     }
 
     function test_Claim_Should_Fail() public {
@@ -411,24 +414,26 @@ contract CurationLaunchTest is Test {
         curationToken.mint(bob, amount);
 
         // Should revert if user doesn't have any staked amount to unstake
-        vm.expectRevert(abi.encodeWithSelector(NewLaunch.NewLaunch_Zero_Amount.selector));
-        newLaunch.claimLaunchToken();
+        vm.expectRevert(abi.encodeWithSelector(CurationLaunch.CurationLaunch_Zero_Amount.selector));
+        curationLaunch.claimLaunchToken();
 
         vm.startPrank(bob);
-        IERC20(curationToken).approve(address(newLaunch), amount);
-        newLaunch.stakeCurationToken(amount);
-        assertEq(newLaunch.totalStaked(), amount);
+        IERC20(curationToken).approve(address(curationLaunch), amount);
+        curationLaunch.stakeCurationToken(amount);
+        assertEq(curationLaunch.totalStaked(), amount);
 
-        vm.expectRevert(abi.encodeWithSelector(NewLaunch.NewLaunch_Launch_Not_Successful_Or_Still_Active.selector));
-        newLaunch.claimLaunchToken();
+        vm.expectRevert(
+            abi.encodeWithSelector(CurationLaunch.CurationLaunch_Launch_Not_Successful_Or_Still_Active.selector)
+        );
+        curationLaunch.claimLaunchToken();
         vm.stopPrank();
 
         _stakeUnStakeClaimForMultipleUsers(19, "stake");
 
         // After successful curation should fail to let users claim tokens if liquidity hasn't been added to Dex.
         vm.startPrank(bob);
-        vm.expectRevert(abi.encodeWithSelector(NewLaunch.NewLaunch_Liquidity_Not_Added_To_Dex_Yet.selector));
-        newLaunch.claimLaunchToken();
+        vm.expectRevert(abi.encodeWithSelector(CurationLaunch.CurationLaunch_Liquidity_Not_Added_To_Dex_Yet.selector));
+        curationLaunch.claimLaunchToken();
         vm.stopPrank();
     }
 
@@ -442,11 +447,11 @@ contract CurationLaunchTest is Test {
                 assertEq(curationToken.balanceOf(newAddress), amount);
 
                 vm.startPrank(newAddress);
-                IERC20(curationToken).approve(address(newLaunch), amount);
-                newLaunch.stakeCurationToken(amount);
+                IERC20(curationToken).approve(address(curationLaunch), amount);
+                curationLaunch.stakeCurationToken(amount);
 
                 assertEq(curationToken.balanceOf(newAddress), 0);
-                assertEq(newLaunch.stakedAmount(newAddress), amount);
+                assertEq(curationLaunch.stakedAmount(newAddress), amount);
                 vm.stopPrank();
             }
         } else if (_direction == "unstake") {
@@ -454,8 +459,8 @@ contract CurationLaunchTest is Test {
                 address newAddress = vm.addr(i + 1);
 
                 vm.startPrank(newAddress);
-                newLaunch.unstakeCurationToken();
-                assertEq(newLaunch.stakedAmount(newAddress), 0);
+                curationLaunch.unstakeCurationToken();
+                assertEq(curationLaunch.stakedAmount(newAddress), 0);
                 assertEq(curationToken.balanceOf(newAddress), amount);
                 vm.stopPrank();
             }
@@ -464,8 +469,8 @@ contract CurationLaunchTest is Test {
                 address newAddress = vm.addr(i + 1);
 
                 vm.startPrank(newAddress);
-                newLaunch.claimLaunchToken();
-                assertEq(newLaunch.stakedAmount(newAddress), 0);
+                curationLaunch.claimLaunchToken();
+                assertEq(curationLaunch.stakedAmount(newAddress), 0);
                 assertEq(launchToken.balanceOf(newAddress), amount);
                 vm.stopPrank();
             }

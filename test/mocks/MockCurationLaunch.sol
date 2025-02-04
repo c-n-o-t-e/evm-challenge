@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {NewLaunch} from "../../src/NewLaunch.sol";
+import {CurationLaunch} from "../../src/CurationLaunch.sol";
 
-contract MockNewLaunch is NewLaunch {
+contract MockCurationLaunch is CurationLaunch {
     function newFunction() external view returns (string memory) {
         return "I am new Implementation";
     }

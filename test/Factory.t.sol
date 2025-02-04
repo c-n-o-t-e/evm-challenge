@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {NewLaunch} from "../src/NewLaunch.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {CurationToken} from "../src/CurationToken.sol";
 import {LaunchFactory} from "../src/LaunchFactory.sol";
+import {CurationLaunch} from "../src/CurationLaunch.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {MockLaunchFactory} from "./mocks/MockLaunchFactory.sol";
 import {UUPSUpgradeable} from "ozUpgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
 //Todo: ensure only factory can deploy new launch contract
 contract CounterTest is Test {
-    NewLaunch newLaunch;
+    CurationLaunch newLaunch;
     CurationToken launchToken;
     CurationToken curationToken;
     LaunchFactory launchFactory;
@@ -19,7 +19,7 @@ contract CounterTest is Test {
     MockLaunchFactory mockLaunchFactory;
 
     function setUp() public {
-        newLaunch = new NewLaunch();
+        newLaunch = new CurationLaunch();
         launchToken = new CurationToken();
         curationToken = new CurationToken();
         launchFactory = new LaunchFactory();
@@ -33,6 +33,8 @@ contract CounterTest is Test {
         launchFactoryProxy.setMaximumStakingAmountPercentage(5_000);
         launchFactoryProxy.setMinimumStakingAmountPercentage(3_000);
     }
+
+    /////////////////// UUPS UPGRADE TESTS ///////////////////
 
     function test_upgradeFactory() public {
         mockLaunchFactory = new MockLaunchFactory();
@@ -51,7 +53,7 @@ contract CounterTest is Test {
 
     error OwnableUnauthorizedAccount(address account);
 
-    function test_upgradeFactory_Should_Fail() public {
+    function test_upgradeFactoryShouldFail() public {
         mockLaunchFactory = new MockLaunchFactory();
         vm.startPrank(address(1));
         vm.expectRevert(abi.encodeWithSelector(OwnableUnauthorizedAccount.selector, (address(1))));
@@ -59,6 +61,7 @@ contract CounterTest is Test {
         vm.stopPrank();
     }
 
+    /////////////////// LAUNCH CURATION TESTS ///////////////////
     function test_LaunchCuration() public {
         launchToken.mint(address(launchFactoryProxy), 10 ether);
         address newLaunchAddress =
@@ -68,7 +71,7 @@ contract CounterTest is Test {
             uint256(LaunchFactory.LaunchStatus.NOT_ACTIVE)
         );
 
-        newLaunch = NewLaunch(
+        newLaunch = CurationLaunch(
             launchFactoryProxy.launchTokenForCuration(
                 address(launchToken), block.timestamp, block.timestamp + 72 hours, 4_000
             )

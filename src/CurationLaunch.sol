@@ -8,8 +8,8 @@ import {SafeERC20} from "oz/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "ozUpgradeable/contracts/proxy/utils/Initializable.sol";
 import {INonfungiblePositionManager} from "./interfaces/INonfungiblePositionManager.sol";
 
-// Todo: add access control
-contract NewLaunch is Initializable {
+// Todo: add reentrancy
+contract CurationLaunch is Initializable {
     using SafeERC20 for IERC20;
 
     ILaunchFactory public factory;
@@ -30,18 +30,18 @@ contract NewLaunch is Initializable {
 
     mapping(address => uint256) public stakedAmount;
 
-    error NewLaunch_Zero_Amount();
-    error NewLaunch_Still_Active();
-    error NewLaunch_Invalid_Token();
-    error NewLaunch_Too_Late_To_Stake();
-    error NewLaunch_Too_Early_To_Stake();
-    error NewLaunch_Caller_Not_Factory();
-    error NewLaunch_Above_MaxPercentage();
-    error NewLaunch_Launch_Already_Triggered();
-    error NewLaunch_Liquidity_Not_Added_To_Dex_Yet();
-    error NewLaunch_Amount_Above_Amount_For_Liquidity();
-    error NewLaunch_Launch_Was_Successful_Or_Still_Active();
-    error NewLaunch_Launch_Not_Successful_Or_Still_Active();
+    error CurationLaunch_Zero_Amount();
+    error CurationLaunch_Still_Active();
+    error CurationLaunch_Invalid_Token();
+    error CurationLaunch_Too_Late_To_Stake();
+    error CurationLaunch_Too_Early_To_Stake();
+    error CurationLaunch_Caller_Not_Factory();
+    error CurationLaunch_Above_MaxPercentage();
+    error CurationLaunch_Launch_Already_Triggered();
+    error CurationLaunch_Liquidity_Not_Added_To_Dex_Yet();
+    error CurationLaunch_Amount_Above_Amount_For_Liquidity();
+    error CurationLaunch_Launch_Was_Successful_Or_Still_Active();
+    error CurationLaunch_Launch_Not_Successful_Or_Still_Active();
 
     event Staked(address indexed user, uint256 amount);
     event Unstaked(address indexed user, uint256 amount);
@@ -69,13 +69,13 @@ contract NewLaunch is Initializable {
     }
 
     modifier onlyFactory() {
-        if (msg.sender != address(factory)) revert NewLaunch_Caller_Not_Factory();
+        if (msg.sender != address(factory)) revert CurationLaunch_Caller_Not_Factory();
         _;
     }
 
     // add access control only factory can call this function
     function setMaxAllowedPerUser(uint256 _maxAllowedPerUser) external onlyFactory {
-        if (_maxAllowedPerUser > MAX_ALLOWED_PER_USER) revert NewLaunch_Above_MaxPercentage();
+        if (_maxAllowedPerUser > MAX_ALLOWED_PER_USER) revert CurationLaunch_Above_MaxPercentage();
         maxAllowedPerUser = _maxAllowedPerUser;
         // emit
     }
@@ -88,11 +88,11 @@ contract NewLaunch is Initializable {
     function stakeCurationToken(uint256 _amount) external {
         triggerLaunchState();
 
-        if (_amount == 0) revert NewLaunch_Zero_Amount();
-        if (block.timestamp < startTime) revert NewLaunch_Too_Early_To_Stake();
+        if (_amount == 0) revert CurationLaunch_Zero_Amount();
+        if (block.timestamp < startTime) revert CurationLaunch_Too_Early_To_Stake();
 
         if (factory.getLaunchStatus(address(this)) != ILaunchFactory.LaunchStatus.ACTIVE) {
-            revert NewLaunch_Too_Late_To_Stake();
+            revert CurationLaunch_Too_Late_To_Stake();
         }
 
         uint256 _stakedAmount = stakedAmount[msg.sender];
@@ -121,9 +121,9 @@ contract NewLaunch is Initializable {
         triggerLaunchState();
         uint256 _stakedAmount = stakedAmount[msg.sender];
 
-        if (_stakedAmount == 0) revert NewLaunch_Zero_Amount();
+        if (_stakedAmount == 0) revert CurationLaunch_Zero_Amount();
         if (factory.getLaunchStatus(address(this)) != ILaunchFactory.LaunchStatus.NOT_SUCCESSFUL) {
-            revert NewLaunch_Launch_Was_Successful_Or_Still_Active();
+            revert CurationLaunch_Launch_Was_Successful_Or_Still_Active();
         }
 
         stakedAmount[msg.sender] -= _stakedAmount;
@@ -154,12 +154,12 @@ contract NewLaunch is Initializable {
     function claimLaunchToken() external {
         triggerLaunchState();
         uint256 _stakedAmount = stakedAmount[msg.sender];
-        if (_stakedAmount == 0) revert NewLaunch_Zero_Amount();
+        if (_stakedAmount == 0) revert CurationLaunch_Zero_Amount();
 
         if (factory.getLaunchStatus(address(this)) != ILaunchFactory.LaunchStatus.SUCCESSFUL) {
-            revert NewLaunch_Launch_Not_Successful_Or_Still_Active();
+            revert CurationLaunch_Launch_Not_Successful_Or_Still_Active();
         }
-        if (!liquidityProvided) revert NewLaunch_Liquidity_Not_Added_To_Dex_Yet();
+        if (!liquidityProvided) revert CurationLaunch_Liquidity_Not_Added_To_Dex_Yet();
 
         stakedAmount[msg.sender] = 0;
         ICurationToken(curationToken).burn(_stakedAmount);
@@ -176,13 +176,13 @@ contract NewLaunch is Initializable {
         onlyFactory
         returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)
     {
-        if (params.token0 != launchToken && params.token0 != curationToken) revert NewLaunch_Invalid_Token();
-        if (params.token1 != launchToken && params.token1 != curationToken) revert NewLaunch_Invalid_Token();
+        if (params.token0 != launchToken && params.token0 != curationToken) revert CurationLaunch_Invalid_Token();
+        if (params.token1 != launchToken && params.token1 != curationToken) revert CurationLaunch_Invalid_Token();
 
         uint256 lunchTokenAmount = params.token0 == launchToken ? params.amount0Desired : params.amount1Desired;
 
         if (lunchTokenAmount > factory.getLaunchAmountForLiquidity(address(this))) {
-            revert NewLaunch_Amount_Above_Amount_For_Liquidity();
+            revert CurationLaunch_Amount_Above_Amount_For_Liquidity();
         }
 
         IERC20(params.token0).approve(address(_nftPositionManager), params.amount0Desired);

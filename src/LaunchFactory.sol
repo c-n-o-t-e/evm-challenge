@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {NewLaunch} from "./NewLaunch.sol";
+import {CurationLaunch} from "./CurationLaunch.sol";
 import {IERC20} from "oz/contracts/token/ERC20/IERC20.sol";
 import {IUniswapV3Factory} from "./interfaces/IUniswapV3Factory.sol";
 import {BeaconProxy} from "oz/contracts/proxy/beacon/BeaconProxy.sol";
@@ -189,7 +189,7 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
     }
 
     function setMaxAllowedPerUserForNewLaunch(address _launch, uint256 _maxAllowedPerUser) external onlyOwner {
-        NewLaunch(_launch).setMaxAllowedPerUser(_maxAllowedPerUser);
+        CurationLaunch(_launch).setMaxAllowedPerUser(_maxAllowedPerUser);
     }
 
     function addLiquidity(AddLiquidity memory _p)
@@ -231,7 +231,8 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
             recipient: _p.recipient,
             deadline: block.timestamp
         });
-        (tokenId, liquidity, amount0, amount1) = NewLaunch(curationContract).addLiquidity(params, _p.nftPositionManager);
+        (tokenId, liquidity, amount0, amount1) =
+            CurationLaunch(curationContract).addLiquidity(params, _p.nftPositionManager);
     }
 
     function updateLaunchStatus(address _launch, address _token, LaunchStatus _status)
