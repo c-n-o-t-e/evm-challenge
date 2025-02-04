@@ -241,6 +241,11 @@ contract CurationLaunchTest is Test {
         assertEq(curationToken.balanceOf(address(curationLaunch)), amount);
 
         vm.warp(block.timestamp + 4 days); // increase time to 4 days after end time.
+        curationLaunch.triggerLaunchState();
+        assertEq(
+            uint256(launchFactoryProxy.getLaunchStatus(address(curationLaunch))),
+            uint256(LaunchFactory.LaunchStatus.NOT_SUCCESSFUL)
+        );
 
         curationLaunch.unstakeCurationToken();
         assertEq(curationLaunch.totalStaked(), 0);
