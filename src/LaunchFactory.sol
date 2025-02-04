@@ -237,6 +237,7 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
 
     function updateLaunchStatus(address _launch, address _token, LaunchStatus _status)
         external
+        nonReentrant
         onlyCurationContract(_launch, _token)
     {
         LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
@@ -245,6 +246,7 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
 
     function updateLaunchStakedAmountAfterCurationPeriod(address _launch, address _token, uint256 _amount)
         external
+        nonReentrant
         onlyCurationContract(_launch, _token)
     {
         LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();

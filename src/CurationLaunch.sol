@@ -7,9 +7,10 @@ import {ICurationToken} from "./interfaces/ICurationToken.sol";
 import {SafeERC20} from "oz/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "ozUpgradeable/contracts/proxy/utils/Initializable.sol";
 import {INonfungiblePositionManager} from "./interfaces/INonfungiblePositionManager.sol";
+import {ReentrancyGuardUpgradeable} from "ozUpgradeable/contracts/utils/ReentrancyGuardUpgradeable.sol";
 
 // Todo: add reentrancy
-contract CurationLaunch is Initializable {
+contract CurationLaunch is Initializable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
     ILaunchFactory public factory;
@@ -51,6 +52,7 @@ contract CurationLaunch is Initializable {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
+        __ReentrancyGuard_init();
     }
 
     function initialize(
@@ -85,7 +87,7 @@ contract CurationLaunch is Initializable {
     }
 
     //Todo: consider if there should be a minimum amount to stake
-    function stakeCurationToken(uint256 _amount) external {
+    function stakeCurationToken(uint256 _amount) external nonReentrant {
         triggerLaunchState();
 
         if (_amount == 0) revert CurationLaunch_Zero_Amount();
@@ -117,7 +119,7 @@ contract CurationLaunch is Initializable {
         emit Staked(msg.sender, _amount);
     }
 
-    function unstakeCurationToken() external {
+    function unstakeCurationToken() external nonReentrant {
         triggerLaunchState();
         uint256 _stakedAmount = stakedAmount[msg.sender];
 
@@ -155,7 +157,7 @@ contract CurationLaunch is Initializable {
         }
     }
 
-    function claimLaunchToken() external {
+    function claimLaunchToken() external nonReentrant {
         triggerLaunchState();
         uint256 _stakedAmount = stakedAmount[msg.sender];
         if (_stakedAmount == 0) revert CurationLaunch_Zero_Amount();
