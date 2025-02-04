@@ -27,22 +27,6 @@ contract CurationLaunchHandler is CommonBase, StdCheats, StdUtils {
     mapping(address => uint256) public ghostUsersLaunchTokenBalance;
     mapping(address => uint256) public ghostUsersCurationTokenBalance;
 
-    struct Price {
-        uint256 amount;
-        uint256 stopPrices;
-        uint256 profitPrices;
-    }
-
-    struct User {
-        bool hasListed;
-        uint256 id;
-        uint256 sold;
-        uint256 total;
-        uint256 bought;
-        uint256 balance;
-    }
-
-    mapping(address => User) public vest;
     mapping(bytes32 => uint256) public calls;
 
     constructor(
