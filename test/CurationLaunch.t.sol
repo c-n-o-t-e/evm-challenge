@@ -9,7 +9,7 @@ import {IERC20} from "oz/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "oz/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {MockCurationLaunch} from "./mocks/MockCurationLaunch.sol";
-import {IERC721Receiver} from "../src/Interfaces/IERC721Receiver.sol";
+import {IERC721Receiver} from "../src/interfaces/IERC721Receiver.sol";
 import {UpgradeableBeacon} from "oz/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {INonfungiblePositionManager} from "../src/interfaces/INonfungiblePositionManager.sol";
 
