@@ -263,7 +263,6 @@ contract LaunchFactory is OwnableUpgradeable, ReentrancyGuardUpgradeable, UUPSUp
     }
 
     // function withdrawToken(address _token, uint256 _amount) external {
-    //     // <--- Check
     //     LaunchFactoryStorage storage $ = _getLaunchFactoryStorage();
     //     if ($.status[_launch] != LaunchStatus.ACTIVE) {
     //         IERC20(_token).transfer(msg.sender, _amount);

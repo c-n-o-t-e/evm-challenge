@@ -9,7 +9,6 @@ import {Initializable} from "ozUpgradeable/contracts/proxy/utils/Initializable.s
 import {INonfungiblePositionManager} from "./interfaces/INonfungiblePositionManager.sol";
 import {ReentrancyGuardUpgradeable} from "ozUpgradeable/contracts/utils/ReentrancyGuardUpgradeable.sol";
 
-// Todo: add reentrancy
 contract CurationLaunch is Initializable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 

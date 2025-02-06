@@ -94,6 +94,6 @@ contract CurationLaunchInvariantTest is Test {
             assertEq(handler.ghostUsersLaunchTokenBalance(actors[i]), launchToken.balanceOf(actors[i]));
         }
 
-        console.log("state:", uint256(launchFactoryProxy.getLaunchStatus(address(curationLaunch))));
+        console.log("LaunchStatus:", uint256(launchFactoryProxy.getLaunchStatus(address(curationLaunch))));
     }
 }

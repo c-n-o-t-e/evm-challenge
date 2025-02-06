@@ -50,7 +50,7 @@ contract LaunchFactoryTest is Test {
     function test_upgradeFactory() public {
         mockLaunchFactory = new MockLaunchFactory();
 
-        // Will fail as newFunction() isn't part of current implementation version
+        // Will fail as newFunction() is not part of current implementation version
         vm.expectRevert();
         MockLaunchFactory(address(launchFactoryProxy)).newFunction();
 

@@ -16,7 +16,7 @@ import {INonfungiblePositionManager} from "../src/interfaces/INonfungiblePositio
 /**
  * @title Uint Test For CurationLaunch
  * @author c-n-o-t-e
- * @dev Contract is used to test out CurationLaunch-
+ * @dev Contract is used to test out CurationLaunch -
  *      by forking the Ethereum Mainnet chain to interact with UniSwap V3 in stateless way
  *
  * Functionalities Tested:

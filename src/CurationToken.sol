@@ -3,6 +3,7 @@ pragma solidity =0.8.25;
 
 import "oz/contracts/token/ERC20/ERC20.sol";
 
+// Demo Token
 contract CurationToken is ERC20 {
     constructor() ERC20("CurationToken", "CT") {}
 

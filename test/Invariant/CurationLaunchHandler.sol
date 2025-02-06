@@ -30,6 +30,7 @@ contract CurationLaunchHandler is CommonBase, StdCheats, StdUtils {
     CurationLaunchTestMock curationLaunch;
     LaunchFactoryTestMock launchFactoryProxy;
 
+    bool entered;
     address currentActor;
     uint256 public ghostTotalStaked;
     uint256 public ghostContractLaunchTokenBalance;
@@ -108,8 +109,6 @@ contract CurationLaunchHandler is CommonBase, StdCheats, StdUtils {
             ghostUsersCurationTokenBalance[currentActor] = ghostUsersCurationTokenBalance[currentActor] + _ghostAmount;
         }
     }
-
-    bool entered;
 
     function unStake(uint256 actorIndexSeed) external useActor(actorIndexSeed) countCall("unStake") {
         uint256 _amount = ghostUsersStakes[currentActor];

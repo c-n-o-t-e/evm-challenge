@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity =0.8.25;
 
-import {console2 as console} from "forge-std/Test.sol";
-
 struct AddressSet {
     address[] addrs;
     mapping(address => bool) saved;
